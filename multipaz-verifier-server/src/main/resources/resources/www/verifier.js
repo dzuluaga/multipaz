@@ -839,7 +839,12 @@ async function requestDocument(format, docType, requestId) {
 
 async function dcRequestCredential(sessionId, dcRequestProtocol, dcRequest, dcRequestProtocol2, dcRequest2) {
     if (!navigator.credentials || !navigator.credentials.get) {
-        alert("Digital Credentials API is not available. Please enable it via chrome://flags#web-identity-digital-credentials.");
+        alert("Digital Credentials API is not available. This could be due to:\n\n" +
+              "1. Chrome flag not enabled: chrome://flags#web-identity-digital-credentials\n" +
+              "2. Accessing via wrong URL: Use localhost instead of IP address\n" +
+              "3. Chrome version too old (requires Chrome 108+)\n\n" +
+              "Current URL: " + window.location.href + "\n" +
+              "Try: " + window.location.href.replace(window.location.hostname, 'localhost'));
         return;
     }
     try {
