@@ -12,6 +12,7 @@ import multipazproject.samples.testapp.generated.resources.av18_card_art
 import multipazproject.samples.testapp.generated.resources.card_utopia_wholesale
 import multipazproject.samples.testapp.generated.resources.driving_license_card_art
 import multipazproject.samples.testapp.generated.resources.movie_ticket_cart_art
+import multipazproject.samples.testapp.generated.resources.payment_card_art
 import multipazproject.samples.testapp.generated.resources.photo_id_card_art
 import multipazproject.samples.testapp.generated.resources.pid_card_art
 import org.jetbrains.compose.resources.DrawableResource
@@ -40,6 +41,7 @@ import org.multipaz.documenttype.DocumentCannedRequest
 import org.multipaz.documenttype.DocumentType
 import org.multipaz.documenttype.knowntypes.AgeVerification
 import org.multipaz.documenttype.knowntypes.Loyalty
+import org.multipaz.documenttype.knowntypes.DigitalPaymentCredential
 import org.multipaz.documenttype.knowntypes.DrivingLicense
 import org.multipaz.documenttype.knowntypes.EUPersonalID
 import org.multipaz.documenttype.knowntypes.PhotoID
@@ -152,6 +154,7 @@ object TestAppUtils {
         UtopiaMovieTicket.getDocumentType(),
         AgeVerification.getDocumentType(),
         Loyalty.getDocumentType(),
+        DigitalPaymentCredential.getDocumentType(),
     )
 
     suspend fun provisionTestDocuments(
@@ -402,6 +405,19 @@ object TestAppUtils {
                     "Erika",
                     "Erika's Loyalty ID",
                     Res.drawable.card_utopia_wholesale
+                )
+                provisionDocument(
+                    documentStore,
+                    secureArea,
+                    secureAreaCreateKeySettingsFunc,
+                    dsKey,
+                    deviceKeyAlgorithm,
+                    deviceKeyMacAlgorithm,
+                    numCredentialsPerDomain,
+                    DigitalPaymentCredential.getDocumentType(),
+                    "Erika",
+                    "Erika's Payment Card Credential",
+                    Res.drawable.payment_card_art
                 )
                 return null
             }

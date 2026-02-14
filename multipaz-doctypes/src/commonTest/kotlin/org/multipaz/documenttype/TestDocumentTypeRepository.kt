@@ -14,9 +14,12 @@ import kotlinx.datetime.TimeZone
 import org.multipaz.cbor.addCborMap
 import org.multipaz.cbor.buildCborArray
 import org.multipaz.cbor.buildCborMap
+import org.multipaz.documenttype.knowntypes.DigitalPaymentCredential
 import org.multipaz.documenttype.knowntypes.EUPersonalID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class TestDocumentTypeRepository {
     companion object {
@@ -58,6 +61,45 @@ class TestDocumentTypeRepository {
         assertEquals(
             DocumentAttributeType.ComplexType,
             documentTypes[0].mdocDocumentType?.namespaces?.get("org.iso.18013.5.1.aamva")?.dataElements?.get("domestic_driving_privileges")?.attribute?.type
+        )
+    }
+
+    @Test
+    fun testDigitalPaymentCredentialDocumentType() {
+        val documentType = DigitalPaymentCredential.getDocumentType()
+        val mdoc = documentType.mdocDocumentType
+        assertNotNull(mdoc)
+
+        assertEquals("Payment Card Credential", documentType.displayName)
+        assertEquals(DigitalPaymentCredential.CARD_DOCTYPE, mdoc.docType)
+        assertTrue(mdoc.namespaces.containsKey(DigitalPaymentCredential.CARD_NAMESPACE))
+
+        val paymentNamespace = mdoc.namespaces[DigitalPaymentCredential.CARD_NAMESPACE]
+        assertNotNull(paymentNamespace)
+
+        listOf(
+            "credential_id",
+            "issuer_id",
+            "issuer_name",
+            "payment_instrument_id",
+            "payment_instrument_type",
+            "network",
+            "masked_account_reference",
+            "holder_name",
+            "wallet_binding_method",
+            "assurance_level",
+            "issue_date",
+            "expiry_date",
+        ).forEach { dataElementName ->
+            assertTrue(
+                paymentNamespace.dataElements.containsKey(dataElementName),
+                "Expected data element '$dataElementName' in payment namespace"
+            )
+        }
+
+        assertEquals(
+            listOf("payment_sca_minimal", "payment_sca_full"),
+            documentType.cannedRequests.map { it.id }
         )
     }
 
