@@ -138,6 +138,18 @@ class ProvisioningClientTest {
         )
     }
 
+    @Test
+    fun authorizationCodeWithPaymentCredential() {
+        runWithAuthorizationCode(
+            offer = OFFER_PAYMENT,
+            serverArgs = arrayOf(
+                "-param", "base_url=http://localhost",
+                "-param", "database_engine=ephemeral",
+                "-param", "use_scopes=true"
+            )
+        )
+    }
+
     fun runWithAuthorizationCode(
         offer: String,
         serverArgs: Array<String>
@@ -493,6 +505,7 @@ class ProvisioningClientTest {
     companion object {
         const val OFFER_MDL = "openid-credential-offer://?credential_offer=%7B%22credential_issuer%22%3A%22http%3A%2F%2Flocalhost%22%2C%22credential_configuration_ids%22%3A%5B%22mDL%22%5D%2C%22grants%22%3A%7B%22authorization_code%22%3A%7B%7D%7D%7D"
         const val OFFER_NATURALIZATION = "openid-credential-offer://?credential_offer=%7B%22credential_issuer%22%3A%22http%3A%2F%2Flocalhost%22%2C%22credential_configuration_ids%22%3A%5B%22utopia_naturalization%22%5D%2C%22grants%22%3A%7B%22authorization_code%22%3A%7B%7D%7D%7D"
+        const val OFFER_PAYMENT = "openid-credential-offer://?credential_offer=%7B%22credential_issuer%22%3A%22http%3A%2F%2Flocalhost%22%2C%22credential_configuration_ids%22%3A%5B%22payment_sca_mdoc%22%5D%2C%22grants%22%3A%7B%22authorization_code%22%3A%7B%7D%7D%7D"
 
         val testClientPreferences = OpenID4VCIClientPreferences(
             clientId = "urn:uuid:418745b8-78a3-4810-88df-7898aff3ffb4",

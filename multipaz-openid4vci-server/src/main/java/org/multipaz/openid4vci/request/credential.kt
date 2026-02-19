@@ -309,6 +309,9 @@ private suspend fun readSystemOfRecord(state: IssuanceState): DataItem {
                 putCborMap("wholesale") {
                     putCborMap("") {}
                 }
+                putCborMap("payment") {
+                    putCborMap("") {}
+                }
             }
         }
     } else {
