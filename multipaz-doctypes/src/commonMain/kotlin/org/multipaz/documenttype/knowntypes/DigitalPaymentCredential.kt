@@ -23,26 +23,6 @@ object DigitalPaymentCredential {
 
             .addMdocAttribute(
                 DocumentAttributeType.String,
-                "credential_id",
-                "Credential ID",
-                "Identifier for this payment SCA credential.",
-                true,
-                CARD_NAMESPACE,
-                Icon.NUMBERS,
-                "cred-01A2B3C4".toDataItem()
-            )
-            .addMdocAttribute(
-                DocumentAttributeType.String,
-                "issuer_id",
-                "Issuer ID",
-                "Identifier of the issuer for this credential.",
-                true,
-                CARD_NAMESPACE,
-                Icon.ACCOUNT_BALANCE,
-                "issuer-bank-utopia".toDataItem()
-            )
-            .addMdocAttribute(
-                DocumentAttributeType.String,
                 "issuer_name",
                 "Issuer Name",
                 "Human-readable issuer name.",
@@ -63,26 +43,6 @@ object DigitalPaymentCredential {
             )
             .addMdocAttribute(
                 DocumentAttributeType.String,
-                "payment_instrument_type",
-                "Payment Instrument Type",
-                "Type of payment instrument, for example card or account.",
-                true,
-                CARD_NAMESPACE,
-                Icon.ACCOUNT_BALANCE,
-                "card".toDataItem()
-            )
-            .addMdocAttribute(
-                DocumentAttributeType.String,
-                "network",
-                "Network",
-                "Payment network or scheme.",
-                true,
-                CARD_NAMESPACE,
-                Icon.ACCOUNT_BALANCE,
-                "visa".toDataItem()
-            )
-            .addMdocAttribute(
-                DocumentAttributeType.String,
                 "masked_account_reference",
                 "Masked Account Reference",
                 "Masked account reference, for example PAN last 4.",
@@ -100,26 +60,6 @@ object DigitalPaymentCredential {
                 CARD_NAMESPACE,
                 Icon.PERSON,
                 "${SampleData.GIVEN_NAME} ${SampleData.FAMILY_NAME}".toDataItem()
-            )
-            .addMdocAttribute(
-                DocumentAttributeType.String,
-                "wallet_binding_method",
-                "Wallet Binding Method",
-                "Method used to bind the credential to the wallet or device.",
-                true,
-                CARD_NAMESPACE,
-                Icon.FINGERPRINT,
-                "device_key".toDataItem()
-            )
-            .addMdocAttribute(
-                DocumentAttributeType.String,
-                "assurance_level",
-                "Assurance Level",
-                "Declared credential assurance level.",
-                true,
-                CARD_NAMESPACE,
-                Icon.MILITARY_TECH,
-                "high".toDataItem()
             )
             .addMdocAttribute(
                 DocumentAttributeType.Date,
@@ -147,13 +87,11 @@ object DigitalPaymentCredential {
                 displayName = "Payment SCA (Minimal)",
                 mdocDataElements = mapOf(
                     CARD_NAMESPACE to mapOf(
-                        "credential_id" to false,
                         "issuer_name" to false,
-                        "network" to false,
+                        "payment_instrument_id" to false,
                         "masked_account_reference" to false,
                         "holder_name" to false,
-                        "wallet_binding_method" to false,
-                        "assurance_level" to false,
+                        "issue_date" to false,
                         "expiry_date" to false
                     )
                 )

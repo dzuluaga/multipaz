@@ -7,6 +7,7 @@ import org.multipaz.documenttype.knowntypes.DrivingLicense
 import org.multipaz.cbor.DataItem
 import org.multipaz.crypto.AsymmetricKey
 import org.multipaz.documenttype.knowntypes.AgeVerification
+import org.multipaz.documenttype.knowntypes.DigitalPaymentCredential
 import org.multipaz.documenttype.knowntypes.EUPersonalID
 import org.multipaz.documenttype.knowntypes.Loyalty
 import org.multipaz.openid4vci.request.wellKnownOpenidCredentialIssuer
@@ -80,6 +81,7 @@ internal interface CredentialFactory {
                     CredentialFactoryUtopiaMovieTicket(),
                     CredentialFactoryAgeVerification(),
                     CredentialFactoryUtopiaLoyalty(),
+                    CredentialFactoryDigitalPaymentCredential(),
                 )
                 factories.forEach { it.initialize() }
                 registeredFactories = RegisteredFactories(
@@ -98,3 +100,4 @@ internal val credentialFormatMdl = CredentialFormat.Mdoc(DrivingLicense.MDL_DOCT
 internal val credentialFormatPid = CredentialFormat.Mdoc(EUPersonalID.EUPID_DOCTYPE)
 internal val credentialFormatAv = CredentialFormat.Mdoc(AgeVerification.AV_DOCTYPE)
 internal val credentialFormatLoyalty = CredentialFormat.Mdoc(Loyalty.LOYALTY_DOCTYPE)
+internal val credentialFormatPayment = CredentialFormat.Mdoc(DigitalPaymentCredential.CARD_DOCTYPE)

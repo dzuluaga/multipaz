@@ -78,16 +78,10 @@ class TestDocumentTypeRepository {
         assertNotNull(paymentNamespace)
 
         listOf(
-            "credential_id",
-            "issuer_id",
             "issuer_name",
             "payment_instrument_id",
-            "payment_instrument_type",
-            "network",
             "masked_account_reference",
             "holder_name",
-            "wallet_binding_method",
-            "assurance_level",
             "issue_date",
             "expiry_date",
         ).forEach { dataElementName ->

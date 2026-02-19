@@ -169,6 +169,63 @@
       ]
     }
   },
+  "credential_payment": {
+    "title": "{core.given_name}'s Payment Card",
+    "card_art": {
+      "blank": "card_payment_sca.png",
+      "content": [
+        {
+          "op": "text",
+          "text": "{display.masked_account_reference}",
+          "font": "fonts/OpenSans-SemiBold.ttf",
+          "font_size": 50,
+          "x": 180,
+          "y": 370,
+          "effects": [
+            {"type": "blur", "radius": 1, "argb": "44000000"},
+            {"type": "fill", "argb": "FF1D2430"}
+          ]
+        },
+        {
+          "op": "text",
+          "text": "VALID THRU",
+          "font": "fonts/OpenSans-SemiBold.ttf",
+          "font_size": 18,
+          "x": 540,
+          "y": 348,
+          "effects": [
+            {"type": "fill", "argb": "FF6B7280"}
+          ]
+        },
+        {
+          "op": "text",
+          "text": "{display.expiry_short}",
+          "font": "fonts/OpenSans-SemiBold.ttf",
+          "font_size": 44,
+          "x": 540,
+          "y": 370,
+          "effects": [
+            {"type": "blur", "radius": 1, "argb": "44000000"},
+            {"type": "fill", "argb": "FF1D2430"}
+          ]
+        },
+        {
+          "op": "text",
+          "text": "{core.given_name} {core.family_name}",
+          "uppercase": true,
+          "font": "fonts/OpenSans-SemiBold.ttf",
+          "font_size": 40,
+          "x": 70,
+          "y": 470,
+          "max_width": 520,
+          "effects": [
+            {"type": "blur", "radius": 1, "argb": "44000000"},
+            {"type": "fill", "argb": "FF1D2430"}
+          ]
+        }
+      ]
+    }
+  },
   "trusted_client_assertions": {
     "urn:uuid:418745b8-78a3-4810-88df-7898aff3ffb4#895b72b9-0808-4fcc-bb19-960d14a9e28f": {
       "kty": "EC",
