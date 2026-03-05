@@ -48,6 +48,8 @@ dependencies {
     implementation(libs.nimbus.oauth2.oidc.sdk)
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.ktor.server.test.host)
 }
 
 ktor {

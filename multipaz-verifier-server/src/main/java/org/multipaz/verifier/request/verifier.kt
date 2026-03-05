@@ -78,6 +78,7 @@ import org.multipaz.crypto.X509Cert
 import org.multipaz.crypto.X509KeyUsage
 import org.multipaz.documenttype.SingleDocumentCannedRequest
 import org.multipaz.documenttype.knowntypes.AgeVerification
+import org.multipaz.documenttype.knowntypes.DigitalPaymentCredential
 import org.multipaz.documenttype.knowntypes.IDPass
 import org.multipaz.documenttype.knowntypes.Loyalty
 import org.multipaz.documenttype.knowntypes.wellKnownMultipleDocumentRequests
@@ -85,6 +86,7 @@ import org.multipaz.mdoc.request.DocRequestInfo
 import org.multipaz.mdoc.request.ZkRequest
 import org.multipaz.mdoc.request.buildDeviceRequest
 import org.multipaz.mdoc.response.DeviceResponse
+import org.multipaz.mdoc.response.MdocDocument
 import org.multipaz.mdoc.zkp.ZkSystemRepository
 import org.multipaz.mdoc.zkp.ZkSystemSpec
 import org.multipaz.mdoc.zkp.longfellow.LongfellowZkSystem
@@ -124,6 +126,8 @@ suspend fun verifierPost(call: ApplicationCall, command: String) {
         "dcBegin" -> handleDcBegin(call, requestData)
         "dcBeginRawDcql" -> handleDcBeginRawDcql(call, requestData)
         "dcGetData" -> handleDcGetData(call, requestData)
+        "dcPrecheckBegin" -> handleDcPrecheckBegin(call, requestData)
+        "dcPrecheckGetData" -> handleDcPrecheckGetData(call, requestData)
         else -> throw InvalidRequestException("Unknown command: $command")
     }
 }
@@ -212,6 +216,7 @@ data class Session(
     var verifiablePresentations: MutableList<String> = mutableListOf(),
     var sessionTranscript: ByteArray? = null,
     var responseWasEncrypted: Boolean = false,
+    val isPrecheck: Boolean = false,
 ) {
     companion object
 }
@@ -285,6 +290,19 @@ private data class DCGetDataRequest(
     val credentialResponse: String
 )
 
+@Serializable
+private data class DcPrecheckBeginRequest(
+    val protocol: String,
+    val origin: String,
+    val host: String,
+)
+
+@Serializable
+private data class DcPrecheckGetDataResponse(
+    val decision: EligibilityDecision? = null,
+    val error: String? = null
+)
+
 @OptIn(ExperimentalSerializationApi::class)
 val prettyJson = Json {
     prettyPrint = true
@@ -311,6 +329,7 @@ private val documentTypeRepo: DocumentTypeRepository by lazy {
     repo.addDocumentType(IDPass.getDocumentType())
     repo.addDocumentType(AgeVerification.getDocumentType())
     repo.addDocumentType(Loyalty.getDocumentType())
+    repo.addDocumentType(DigitalPaymentCredential.getDocumentType())
     repo
 }
 
@@ -2148,4 +2167,209 @@ private fun generateBrowserSessionTranscript(
             }
         }
     )
+}
+
+// --- DPC Precheck ---
+
+private suspend fun handleDcPrecheckBegin(
+    call: ApplicationCall,
+    requestData: ByteArray,
+) {
+    val requestString = String(requestData, 0, requestData.size, Charsets.UTF_8)
+    val request = Json.decodeFromString<DcPrecheckBeginRequest>(requestString)
+    Logger.i(TAG, "dcPrecheckBegin protocol=${request.protocol}")
+
+    val protocol = when (request.protocol) {
+        "w3c_dc_mdoc_api" -> Protocol.W3C_DC_MDOC_API
+        else -> {
+            val errorResponse = DCBeginResponse(
+                sessionId = "",
+                dcRequestProtocol = "",
+                dcRequestString = "",
+                dcRequestProtocol2 = null,
+                dcRequestString2 = null,
+                error = "Invalid protocol: ${request.protocol}"
+            )
+            call.respondText(
+                contentType = ContentType.Application.Json,
+                text = Json.encodeToString(errorResponse)
+            )
+            return
+        }
+    }
+
+    val dpcDocType = DigitalPaymentCredential.CARD_DOCTYPE
+    val cannedRequest = documentTypeRepo.getDocumentTypeForMdoc(dpcDocType)!!
+        .cannedRequests.first { it.id == "payment_sca_minimal" }
+
+    val session = Session(
+        nonce = ByteString(Random.Default.nextBytes(16)),
+        origin = request.origin,
+        host = request.host,
+        encryptionKey = Crypto.createEcPrivateKey(EcCurve.P256),
+        requestFormat = "mdoc",
+        requestDocType = dpcDocType,
+        requestId = cannedRequest.id,
+        rawDcql = "",
+        multiDocumentRequestId = "",
+        protocol = protocol,
+        signRequest = true,
+        encryptResponse = true,
+        isPrecheck = true,
+    )
+
+    val verifierSessionTable = BackendEnvironment.getTable(verifierSessionTableSpec)
+    val sessionId = verifierSessionTable.insert(
+        key = null,
+        data = ByteString(session.toCbor()),
+        expiration = Clock.System.now() + SESSION_EXPIRATION_INTERVAL
+    )
+
+    try {
+        val readerAuthKey = createSingleUseReaderKey(session.host)
+        val exchangeProtocols = listOf("org-iso-mdoc")
+        val beginResponse = calcDcRequestNew(
+            exchangeProtocols,
+            sessionId,
+            documentTypeRepo,
+            "mdoc",
+            session,
+            cannedRequest,
+            session.protocol,
+            session.nonce,
+            session.origin,
+            session.encryptionKey,
+            session.encryptionKey.publicKey as EcPublicKeyDoubleCoordinate,
+            readerAuthKey,
+            true,
+            true,
+        )
+        val json = Json { ignoreUnknownKeys = true }
+        call.respondText(
+            contentType = ContentType.Application.Json,
+            text = json.encodeToString(beginResponse)
+        )
+    } catch (e: Throwable) {
+        val errorResponse = DCBeginResponse(
+            sessionId = sessionId,
+            dcRequestProtocol = "",
+            dcRequestString = "",
+            dcRequestProtocol2 = null,
+            dcRequestString2 = null,
+            error = "${e.message}\n\n${e.stackTraceToString()}"
+        )
+        call.respondText(
+            contentType = ContentType.Application.Json,
+            text = Json.encodeToString(errorResponse)
+        )
+    }
+}
+
+private suspend fun handleDcPrecheckGetData(
+    call: ApplicationCall,
+    requestData: ByteArray,
+) {
+    val requestString = String(requestData, 0, requestData.size, Charsets.UTF_8)
+    val request = Json.decodeFromString<DCGetDataRequest>(requestString)
+
+    val verifierSessionTable = BackendEnvironment.getTable(verifierSessionTableSpec)
+    val encodedSession = verifierSessionTable.get(request.sessionId)
+    if (encodedSession == null) {
+        call.respondText(
+            contentType = ContentType.Application.Json,
+            text = Json.encodeToString(
+                DcPrecheckGetDataResponse(error = "Session not found or expired")
+            )
+        )
+        return
+    }
+    val session = Session.fromCbor(encodedSession.toByteArray())
+
+    try {
+        // Reuse existing decryption/parsing
+        when (request.credentialProtocol) {
+            "org-iso-mdoc" -> handleDcGetDataMdocApi(session, request.credentialResponse)
+            else -> {
+                call.respondText(
+                    contentType = ContentType.Application.Json,
+                    text = Json.encodeToString(
+                        DcPrecheckGetDataResponse(
+                            error = "Unsupported protocol for precheck: ${request.credentialProtocol}"
+                        )
+                    )
+                )
+                return
+            }
+        }
+
+        if (session.deviceResponses.isEmpty()) {
+            call.respondText(
+                contentType = ContentType.Application.Json,
+                text = Json.encodeToString(
+                    DcPrecheckGetDataResponse(error = "No credential data in response")
+                )
+            )
+            return
+        }
+
+        // Parse and verify the device response
+        val encodedDeviceResponse = session.deviceResponses.first()
+        val deviceResponse = DeviceResponse.fromDataItem(
+            Cbor.decode(encodedDeviceResponse)
+        )
+
+        var verificationSucceeded = true
+        try {
+            deviceResponse.verify(
+                sessionTranscript = Cbor.decode(session.sessionTranscript!!),
+            )
+        } catch (e: Throwable) {
+            verificationSucceeded = false
+            Logger.w(TAG, "DPC precheck device response verification failed: ${e.message}")
+        }
+
+        // Find the DPC document
+        val dpcDocument = deviceResponse.documents.find {
+            it.docType == DigitalPaymentCredential.CARD_DOCTYPE
+        }
+        if (dpcDocument == null) {
+            call.respondText(
+                contentType = ContentType.Application.Json,
+                text = Json.encodeToString(
+                    DcPrecheckGetDataResponse(error = "No DPC document in response")
+                )
+            )
+            return
+        }
+
+        // Run policy evaluation
+        val trustManager = getIssuerTrustManager()
+        val decision = DpcPolicyEvaluator.evaluate(
+            document = dpcDocument,
+            trustManager = trustManager,
+            verificationSucceeded = verificationSucceeded,
+        )
+
+        Logger.i(
+            TAG,
+            "DPC precheck sessionId=${request.sessionId} " +
+                "eligible=${decision.eligible} " +
+                "evaluatedAt=${decision.evaluatedAt}"
+        )
+
+        call.respondText(
+            contentType = ContentType.Application.Json,
+            text = Json.encodeToString(DcPrecheckGetDataResponse(decision = decision))
+        )
+    } catch (e: Throwable) {
+        Logger.e(TAG, "DPC precheck failed for sessionId=${request.sessionId}: ${e.message}")
+        call.respondText(
+            contentType = ContentType.Application.Json,
+            text = Json.encodeToString(
+                DcPrecheckGetDataResponse(
+                    error = "Credential processing failed: ${e.message}"
+                )
+            )
+        )
+    }
 }

@@ -81,6 +81,12 @@ async function onLoad() {
     }
     addTab("Multi-Document", "multiDocument", "any", null, false, response.multiDocumentRequests)
     addTab("Raw DCQL", "rawDcql", "any", null, false, null)
+    // Add DPC Precheck link in the tab row
+    $('#pills-tab').append(
+        '<li class="nav-item" role="presentation">' +
+        '<button class="nav-link text-warning fw-bold" type="button" onclick="precheckDpc()">DPC Precheck</button>' +
+        '</li>'
+    )
     rawDcqlReset_mdl1()
 }
 
@@ -1150,6 +1156,103 @@ async function dcProcessResponse(sessionId, credentialResponse) {
 function openid4vpAuthenticateWithWallet() {
     console.log("Opening " + openid4vpUri)
     window.open(openid4vpUri)
+}
+
+async function precheckDpc() {
+    if (!navigator.credentials || !navigator.credentials.get) {
+        alert("Digital Credentials API is not available. Please enable it via chrome://flags#web-identity-digital-credentials.");
+        return;
+    }
+    try {
+        const beginResponse = await callServer(
+            'dcPrecheckBegin',
+            {
+                protocol: 'w3c_dc_mdoc_api',
+                origin: location.origin,
+                host: location.host,
+            }
+        )
+        console.log('dcPrecheckBegin response', beginResponse)
+        if (beginResponse.error != null) {
+            alert("Precheck begin failed: " + beginResponse.error)
+            return
+        }
+        var requestString = JSON.parse(beginResponse.dcRequestString)
+        const credentialResponse = await navigator.credentials.get({
+            digital: {
+                requests: [{
+                    protocol: beginResponse.dcRequestProtocol,
+                    data: requestString
+                }]
+            },
+            mediation: 'required',
+        })
+        console.log('precheck credentialResponse', credentialResponse)
+        var dataStr
+        if (typeof(credentialResponse.data) == 'string') {
+            dataStr = credentialResponse.data
+        } else {
+            dataStr = JSON.stringify(credentialResponse.data)
+        }
+        const getDataResponse = await callServer(
+            'dcPrecheckGetData',
+            {
+                sessionId: beginResponse.sessionId,
+                credentialProtocol: credentialResponse.protocol,
+                credentialResponse: dataStr
+            }
+        )
+        console.log('dcPrecheckGetData response', getDataResponse)
+        showPrecheckResult(getDataResponse)
+    } catch (err) {
+        alert("DPC Precheck failed: " + err)
+    }
+}
+
+function showPrecheckResult(response) {
+    var statusBadge = document.getElementById('precheckStatusBadge')
+    var errorDiv = document.getElementById('precheckError')
+    var checksList = document.getElementById('precheckChecksList')
+    var timestamps = document.getElementById('precheckTimestamps')
+
+    // Reset
+    statusBadge.innerHTML = ''
+    errorDiv.style.display = 'none'
+    checksList.innerHTML = ''
+    timestamps.style.display = 'none'
+
+    if (response.error != null) {
+        errorDiv.textContent = response.error
+        errorDiv.style.display = 'block'
+    } else if (response.decision != null) {
+        var decision = response.decision
+        if (decision.eligible) {
+            statusBadge.innerHTML = '<span class="badge bg-success fs-4">Eligible</span>'
+        } else {
+            statusBadge.innerHTML = '<span class="badge bg-danger fs-4">Not Eligible</span>'
+        }
+
+        for (var check of decision.checks) {
+            var icon = check.passed ? '\u2705' : '\u274C'
+            checksList.innerHTML += '<li class="list-group-item">' +
+                '<strong>' + icon + ' ' + check.checkName + '</strong>' +
+                '<br><small class="text-muted">' + check.reason + '</small></li>'
+        }
+
+        document.getElementById('precheckEvaluatedAt').textContent = decision.evaluatedAt
+        document.getElementById('precheckExpiresAt').textContent = decision.expiresAt
+        var expiryRow = document.getElementById('precheckCredentialExpiryRow')
+        if (decision.credentialExpiryDate != null) {
+            document.getElementById('precheckCredentialExpiry').textContent = decision.credentialExpiryDate
+            expiryRow.style.display = 'block'
+        } else {
+            expiryRow.style.display = 'none'
+        }
+        timestamps.style.display = 'block'
+    }
+
+    var modal = new bootstrap.Modal(document.getElementById('precheckResultModal'), {})
+    modal.show()
 }
 
 async function callServer(command, params) {

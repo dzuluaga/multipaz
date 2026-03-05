@@ -82,6 +82,14 @@
             <input class="form-control text-end" type="text" placeholder="scheme" id="scheme-input" value="haip-vp">
         </div>
 
+        <hr class="my-4">
+
+        <div class="d-grid gap-2 mx-auto mb-3">
+            <button type="button" class="btn btn-warning btn-lg" onclick="precheckDpc()">
+                Run DPC Precheck
+            </button>
+        </div>
+
     </main>
     <footer class="pt-5 my-5 text-body-secondary border-top">
         This is a testing website that doesn't collect any data.
@@ -104,6 +112,34 @@
 
                 </ol>
 
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DPC Precheck Result Modal -->
+<div class="modal fade" id="precheckResultModal" tabindex="-1" aria-labelledby="precheckResultModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="precheckResultModalLabel">DPC Precheck Result</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="precheckStatusBadge" class="text-center mb-3"></div>
+                <div id="precheckError" class="alert alert-danger" style="display:none"></div>
+                <h6>Policy Checks</h6>
+                <ul id="precheckChecksList" class="list-group mb-3"></ul>
+                <div id="precheckTimestamps" style="display:none">
+                    <small class="text-muted">
+                        <div>Evaluated: <span id="precheckEvaluatedAt"></span></div>
+                        <div>Decision expires: <span id="precheckExpiresAt"></span></div>
+                        <div id="precheckCredentialExpiryRow">Credential expiry: <span id="precheckCredentialExpiry"></span></div>
+                    </small>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
