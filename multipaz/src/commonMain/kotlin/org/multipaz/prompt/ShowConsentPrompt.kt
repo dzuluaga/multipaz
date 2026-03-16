@@ -1,6 +1,7 @@
 package org.multipaz.prompt
 
 import org.multipaz.document.Document
+import org.multipaz.openid.TransactionData
 import org.multipaz.presentment.CredentialPresentmentData
 import org.multipaz.presentment.CredentialPresentmentSelection
 import org.multipaz.request.Requester
@@ -23,7 +24,8 @@ typealias ShowConsentPromptFn = suspend (
     trustMetadata: TrustMetadata?,
     credentialPresentmentData: CredentialPresentmentData,
     preselectedDocuments: List<Document>,
-    onDocumentsInFocus: (documents: List<Document>) -> Unit
+    onDocumentsInFocus: (documents: List<Document>) -> Unit,
+    transactionData: Map<String, List<TransactionData>>?
 ) -> CredentialPresentmentSelection?
 
 /**
@@ -36,7 +38,8 @@ suspend fun promptModelSilentConsent(
     trustMetadata: TrustMetadata?,
     credentialPresentmentData: CredentialPresentmentData,
     preselectedDocuments: List<Document>,
-    onDocumentsInFocus: (documents: List<Document>) -> Unit
+    onDocumentsInFocus: (documents: List<Document>) -> Unit,
+    transactionData: Map<String, List<TransactionData>>?
 ): CredentialPresentmentSelection? {
     val ret = credentialPresentmentData.select(preselectedDocuments)
     onDocumentsInFocus(ret.matches.map { it.credential.document })
@@ -65,7 +68,8 @@ suspend fun promptModelRequestConsent(
     trustMetadata: TrustMetadata?,
     credentialPresentmentData: CredentialPresentmentData,
     preselectedDocuments: List<Document>,
-    onDocumentsInFocus: (documents: List<Document>) -> Unit
+    onDocumentsInFocus: (documents: List<Document>) -> Unit,
+    transactionData: Map<String, List<TransactionData>>?
 ): CredentialPresentmentSelection? {
     try {
         return PromptModel.get().requestConsent(
@@ -74,6 +78,7 @@ suspend fun promptModelRequestConsent(
             credentialPresentmentData = credentialPresentmentData,
             preselectedDocuments = preselectedDocuments,
             onDocumentsInFocus = onDocumentsInFocus,
+            transactionData = transactionData,
         )
     } catch (_: PromptDismissedException) {
         return null

@@ -100,6 +100,12 @@ import org.multipaz.compose.text.fromMarkdown
 import org.multipaz.credential.Credential
 import org.multipaz.document.Document
 import org.multipaz.documenttype.Icon
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import org.multipaz.documenttype.TransactionDataType
+import org.multipaz.documenttype.TransactionDataTypeRepository
+import org.multipaz.openid.TransactionData
 import org.multipaz.multipaz_compose.generated.resources.Res
 import org.multipaz.multipaz_compose.generated.resources.credential_presentment_button_cancel
 import org.multipaz.multipaz_compose.generated.resources.credential_presentment_button_more
@@ -248,6 +254,8 @@ fun Consent(
     preselectedDocuments: List<Document>,
     imageLoader: ImageLoader?,
     onDocumentsInFocus: (documents: List<Document>) -> Unit,
+    transactionData: Map<String, List<TransactionData>>? = null,
+    transactionDataTypeRepository: TransactionDataTypeRepository? = null,
     onConfirm: (selection: CredentialPresentmentSelection) -> Unit,
     onCancel: () -> Unit = {},
 ) {
@@ -325,6 +333,8 @@ fun Consent(
                     imageLoader = imageLoader,
                     combinations = combinations,
                     matchSelectionLists = matchSelectionLists,
+                    transactionData = transactionData,
+                    transactionDataTypeRepository = transactionDataTypeRepository,
                     onShowRequesterInfo = {
                         navController.navigate("showRequesterInfo")
                     },
@@ -455,6 +465,8 @@ private fun ConsentPage(
     imageLoader: ImageLoader?,
     combinations: List<Combination>,
     matchSelectionLists: MutableState<List<List<Int>>>,
+    transactionData: Map<String, List<TransactionData>>? = null,
+    transactionDataTypeRepository: TransactionDataTypeRepository? = null,
     onShowRequesterInfo: () -> Unit,
     onConfirm: (selection: CredentialPresentmentSelection) -> Unit,
     onCancel: () -> Unit,
@@ -532,6 +544,8 @@ private fun ConsentPage(
                                         requesterDisplayData = requesterDisplayData,
                                         trustMetadata = trustMetadata,
                                         appInfo = appInfo,
+                                        transactionData = transactionData,
+                                        transactionDataTypeRepository = transactionDataTypeRepository,
                                         onChooseMatch = { _, elementNum ->
                                             activeElementIndex = elementNum
                                             isFlipped = true
@@ -754,6 +768,8 @@ private fun CredentialSetViewer(
     requesterDisplayData: RequesterDisplayData,
     trustMetadata: TrustMetadata?,
     appInfo: ApplicationInfo?,
+    transactionData: Map<String, List<TransactionData>>? = null,
+    transactionDataTypeRepository: TransactionDataTypeRepository? = null,
     onChooseMatch: (combinationNum: Int, elementNum: Int) -> Unit
 ) {
 
@@ -836,6 +852,67 @@ private fun CredentialSetViewer(
                 ClaimsGridView(claims = notStoredClaims, useColumns = true)
                 SharedStoredText(text = sharedWithAndStoredByText)
                 ClaimsGridView(claims = storedClaims, useColumns = true)
+            }
+        }
+    }
+
+    // Render transaction details if present
+    if (transactionData != null) {
+        val allTransactionItems = transactionData.values.flatten()
+        for (txnData in allTransactionItems) {
+            val txnType = txnData.typeDefinition
+                ?: transactionDataTypeRepository?.getType(txnData.type)
+            entries.add {
+                Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                    Text(
+                        text = txnType?.displayName ?: "Transaction Details",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    if (txnType != null) {
+                        // Use registered field metadata for rendering
+                        for (field in txnType.fields) {
+                            if (!field.userVisible) continue
+                            val value = resolveJsonPath(txnData.data, field.path) ?: continue
+                            // Combine amount + currency on one line
+                            val displayValue = if (field.path == "amount") {
+                                val currency = resolveJsonPath(txnData.data, "currency")
+                                if (currency != null) "$value $currency" else value
+                            } else {
+                                value
+                            }
+                            TransactionDetailRow(
+                                icon = field.icon,
+                                label = field.displayName,
+                                value = displayValue
+                            )
+                        }
+                    } else {
+                        // Fallback: render primitive fields from the JSON
+                        for ((key, element) in txnData.data) {
+                            if (key == "type" || key == "credential_ids" || key == "transaction_data_hashes_alg") continue
+                            val value = (element as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+                            if (value != null) {
+                                TransactionDetailRow(
+                                    icon = Icon.NUMBERS,
+                                    label = key,
+                                    value = value
+                                )
+                            } else if (element is kotlinx.serialization.json.JsonObject) {
+                                // Render nested object fields with parent.child labels
+                                for ((nestedKey, nestedElement) in element) {
+                                    val nestedValue = (nestedElement as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull ?: continue
+                                    TransactionDetailRow(
+                                        icon = Icon.NUMBERS,
+                                        label = "$key.$nestedKey",
+                                        value = nestedValue
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -1027,6 +1104,50 @@ private fun RelyingPartyTrailer(
     }
 }
 
+
+/**
+ * Resolves a dot-separated JSON path (e.g., "payee.name") to a string value.
+ */
+private fun resolveJsonPath(json: kotlinx.serialization.json.JsonObject, path: String): String? {
+    val parts = path.split(".")
+    var current: kotlinx.serialization.json.JsonElement = json
+    for (part in parts.dropLast(1)) {
+        current = (current as? kotlinx.serialization.json.JsonObject)?.get(part) ?: return null
+    }
+    return (current as? kotlinx.serialization.json.JsonObject)
+        ?.get(parts.last())?.jsonPrimitive?.contentOrNull
+}
+
+@Composable
+private fun TransactionDetailRow(
+    icon: org.multipaz.documenttype.Icon,
+    label: String,
+    value: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            modifier = Modifier.size(20.dp),
+            imageVector = icon.getOutlinedImageVector(),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = "$label: ",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
 
 @Composable
 private fun EntryList(

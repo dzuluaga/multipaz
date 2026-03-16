@@ -52,6 +52,9 @@ import org.multipaz.documenttype.knowntypes.DrivingLicense
 import org.multipaz.documenttype.knowntypes.PhotoID
 import org.multipaz.documenttype.knowntypes.UtopiaBoardingPass
 import org.multipaz.mdoc.util.MdocUtil
+import org.multipaz.documenttype.knowntypes.DigitalPaymentCredential
+import org.multipaz.documenttype.knowntypes.PaymentTransactionData
+import org.multipaz.openid.TransactionData
 import org.multipaz.openid.dcql.DcqlQuery
 import org.multipaz.presentment.CredentialPresentmentData
 import org.multipaz.presentment.CredentialPresentmentSelection
@@ -116,7 +119,8 @@ private enum class UseCase(
     PHOTO_ID_MANDATORY("PhotoID: Mandatory data elements (2 docs)"),
     OPENID4VP_COMPLEX_EXAMPLE("Complex example from OpenID4VP Appendix D"),
     BOARDING_PASS_AND_MDL_EXAMPLE("Boarding pass AND mDL"),
-    BOARDING_PASS_OR_MDL_EXAMPLE("Boarding pass OR mDL")
+    BOARDING_PASS_OR_MDL_EXAMPLE("Boarding pass OR mDL"),
+    PAYMENT_SCA_WITH_TRANSACTION("Payment SCA with transaction data")
 }
 
 private enum class PaDuration(
@@ -157,7 +161,8 @@ expect suspend fun launchAndroidPresentmentActivity(
     trustMetadata: TrustMetadata?,
     credentialPresentmentData: CredentialPresentmentData,
     preselectedDocuments: List<Document>,
-    onDocumentsInFocus: (documents: List<Document>) -> Unit
+    onDocumentsInFocus: (documents: List<Document>) -> Unit,
+    transactionData: Map<String, List<TransactionData>>?
 ): CredentialPresentmentSelection?
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -205,6 +210,7 @@ fun ConsentPromptScreen(
         documentTypeRepository.addDocumentType(DrivingLicense.getDocumentType())
         documentTypeRepository.addDocumentType(PhotoID.getDocumentType())
         documentTypeRepository.addDocumentType(UtopiaBoardingPass.getDocumentType())
+        documentTypeRepository.addDocumentType(DigitalPaymentCredential.getDocumentType())
         documentStore = buildDocumentStore(storage, secureAreaRepository) {}
         documentModel = DocumentModel.create(documentStore = documentStore!!, documentTypeRepository = documentTypeRepository)
 
@@ -307,6 +313,22 @@ fun ConsentPromptScreen(
             expectedUpdate = null,
             domain = "mdoc"
         )
+        val documentPayment = documentStore!!.createDocument(
+            displayName = "Erika's Payment Card",
+            typeDisplayName = "Payment Card Credential",
+            cardArt = ByteString(Res.readBytes("drawable/payment_card_art.png"))
+        )
+        DigitalPaymentCredential.getDocumentType().createMdocCredentialWithSampleData(
+            document = documentPayment,
+            secureArea = secureArea,
+            createKeySettings = CreateKeySettings(),
+            dsKey = dsKey,
+            signedAt = credsValidFrom,
+            validFrom = credsValidFrom,
+            validUntil = credsValidUntil,
+            expectedUpdate = null,
+            domain = "mdoc"
+        )
         addCredentialsForOpenID4VPComplexExample(
             documentStore = documentStore!!,
             secureArea = secureArea,
@@ -364,7 +386,8 @@ fun ConsentPromptScreen(
                 trustMetadata: TrustMetadata?,
                 credentialPresentmentData: CredentialPresentmentData,
                 preselectedDocuments: List<Document>,
-                onDocumentsInFocus: (documents: List<Document>) -> Unit
+                onDocumentsInFocus: (documents: List<Document>) -> Unit,
+                transactionData: Map<String, List<TransactionData>>?
             ) -> CredentialPresentmentSelection?,
                           paData: AndroidPresentmentActivityData,
         ) {
@@ -390,6 +413,7 @@ fun ConsentPromptScreen(
                         { documents ->
                             onDocumentsInFocus = documents
                         },
+                        queryResult.transactionData,
                     )
                 } catch (e: Exception) {
                     if (e is CancellationException) throw e
@@ -404,13 +428,14 @@ fun ConsentPromptScreen(
         item {
             Button(onClick = {
                 launchConsent(launcher = { source, paData,
-                                           requester, trustMetadata, credentialPresentmentData, preselectedDocuments, onDocumentsInFocus ->
+                                           requester, trustMetadata, credentialPresentmentData, preselectedDocuments, onDocumentsInFocus, transactionData ->
                         promptModel.requestConsent(
                             requester = requester,
                             trustMetadata = trustMetadata,
                             credentialPresentmentData = credentialPresentmentData,
                             preselectedDocuments = preselectedDocuments,
                             onDocumentsInFocus = onDocumentsInFocus,
+                            transactionData = transactionData,
                         )
                     },
                     paData = AndroidPresentmentActivityData()
@@ -540,7 +565,8 @@ fun ConsentPromptScreen(
 private data class QueryResult(
     val requester: Requester,
     val source: PresentmentSource,
-    val presentmentData: CredentialPresentmentData
+    val presentmentData: CredentialPresentmentData,
+    val transactionData: Map<String, List<TransactionData>>? = null
 )
 
 private suspend fun getQueryResult(
@@ -688,6 +714,8 @@ private suspend fun getQueryResult(
             }
             """.trimIndent()
         ).jsonObject
+        UseCase.PAYMENT_SCA_WITH_TRANSACTION ->
+            DigitalPaymentCredential.getDocumentType().cannedRequests.find { it.id == "payment_sca_minimal" }!!.mdocRequest!!.toDcql()
         UseCase.BOARDING_PASS_OR_MDL_EXAMPLE -> Json.parseToJsonElement(
                 """
             {
@@ -770,7 +798,28 @@ private suspend fun getQueryResult(
     )
     val dcqlQuery = DcqlQuery.fromJson(dcql = dcql)
     val dcqlResponse = dcqlQuery.execute(presentmentSource = source)
-    return QueryResult(requester, source, dcqlResponse)
+
+    val transactionDataMap = if (useCase == UseCase.PAYMENT_SCA_WITH_TRANSACTION) {
+        generateMockTransactionData(dcqlQuery)
+    } else {
+        null
+    }
+
+    return QueryResult(requester, source, dcqlResponse, transactionDataMap)
+}
+
+private suspend fun generateMockTransactionData(
+    dcqlQuery: DcqlQuery
+): Map<String, List<TransactionData>> {
+    return PaymentTransactionData.create(
+        credentialId = dcqlQuery.credentialQueries.first().id,
+        transactionId = "txn-mock-001",
+        payeeName = "Delta Airlines",
+        payeeId = "merchant-delta-001",
+        amount = "90.00",
+        currency = "USD",
+        merchantMessage = "Flight NYC-LAX, Mar 15"
+    )
 }
 
 private suspend fun calculateRequester(

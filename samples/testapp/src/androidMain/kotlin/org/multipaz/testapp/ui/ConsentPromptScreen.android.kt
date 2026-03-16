@@ -14,6 +14,7 @@ import org.multipaz.presentment.PresentmentCanceledException
 import org.multipaz.presentment.PresentmentSource
 import org.multipaz.prompt.promptModelRequestConsent
 import org.multipaz.prompt.showBiometricPrompt
+import org.multipaz.openid.TransactionData
 import org.multipaz.request.Requester
 import org.multipaz.securearea.UserAuthenticationType
 import org.multipaz.trustmanagement.TrustMetadata
@@ -27,7 +28,8 @@ actual suspend fun launchAndroidPresentmentActivity(
     trustMetadata: TrustMetadata?,
     credentialPresentmentData: CredentialPresentmentData,
     preselectedDocuments: List<Document>,
-    onDocumentsInFocus: (documents: List<Document>) -> Unit
+    onDocumentsInFocus: (documents: List<Document>) -> Unit,
+    transactionData: Map<String, List<TransactionData>>?
 ): CredentialPresentmentSelection? {
     PresentmentActivity.presentmentModel.reset(
         source = source,
@@ -50,6 +52,7 @@ actual suspend fun launchAndroidPresentmentActivity(
                     onDocumentsInFocus = { documents ->
                         PresentmentActivity.presentmentModel.setDocumentsSelected(selectedDocuments = documents)
                     },
+                    transactionData = transactionData,
                 )
                 if (selection == null) {
                     throw PresentmentCanceledException("Presentment cancelled because user dismissed consent prompt")

@@ -11,6 +11,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.multipaz.crypto.Algorithm
 import org.multipaz.crypto.Crypto
+import org.multipaz.documenttype.TransactionDataType
 import org.multipaz.util.fromBase64Url
 
 /**
@@ -24,14 +25,38 @@ import org.multipaz.util.fromBase64Url
  * @param hashAlgorithm algorithm, only if it was explicitly specified in transaction data
  * @param type type of the transaction data item
  * @param data JSON object that represents the transaction data item
+ * @param typeDefinition the [TransactionDataType] for this item, if registered. Used by the
+ *  consent UI to render field labels and icons without hardcoding.
  */
 class TransactionData(
     val hash: ByteString,
     val hashAlgorithm: Algorithm?,
     val type: String,
-    val data: JsonObject
+    val data: JsonObject,
+    val typeDefinition: TransactionDataType? = null
 ) {
     companion object {
+        private val supportedTypes = mutableSetOf(
+            "org.multipaz.transaction_data.test"
+        )
+        private val typeDefinitions = mutableMapOf<String, TransactionDataType>()
+
+        /**
+         * Registers a transaction data type so it is accepted by [parse].
+         *
+         * Built-in types (like `org.multipaz.transaction_data.test`) are always accepted.
+         * Call this for custom types before parsing transaction data that uses them.
+         *
+         * @param type the transaction data type identifier to register.
+         * @param definition optional [TransactionDataType] with field metadata for consent UI rendering.
+         */
+        fun registerType(type: String, definition: TransactionDataType? = null) {
+            supportedTypes.add(type)
+            if (definition != null) {
+                typeDefinitions[type] = definition
+            }
+        }
+
         /**
          * Parses encoded transaction data.
          *
@@ -64,7 +89,7 @@ class TransactionData(
                 val data = Json.parseToJsonElement(jsonText).jsonObject
                 val credentialIds = data["credential_ids"]!!.jsonArray
                 val type = data["type"]!!.jsonPrimitive.content
-                if (type != "org.multipaz.transaction_data.test") {
+                if (type !in supportedTypes) {
                     throw IllegalArgumentException("Unsupported transaction type: '$type'")
                 }
                 val hashAlgorithm = if (hashAlgorithmOverrides != null) {
@@ -85,7 +110,7 @@ class TransactionData(
                     }
                 }
                 val hash = Crypto.digest(hashAlgorithm ?: Algorithm.SHA256, encoded.encodeToByteArray())
-                val parsed = TransactionData(ByteString(hash), hashAlgorithm, type, data)
+                val parsed = TransactionData(ByteString(hash), hashAlgorithm, type, data, typeDefinitions[type])
                 for (id in credentialIds) {
                     map.getOrPut(id.jsonPrimitive.content) { mutableListOf() }.add(parsed)
                 }

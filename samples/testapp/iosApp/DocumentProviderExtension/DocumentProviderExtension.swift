@@ -129,14 +129,15 @@ func getPresentmentSource() async -> PresentmentSource {
             }
             return nil
         },
-        showConsentPromptFn: { requester, trustMetadata, credentialPresentmentData, preselectedDocuments, onDocumentsInFocus in
-            try! await promptModelSilentConsent(
+        showConsentPromptFn: { requester, trustMetadata, credentialPresentmentData, preselectedDocuments, onDocumentsInFocus, transactionData in
+            return try! await promptModelSilentConsent(
                 requester: requester,
                 trustMetadata: trustMetadata,
                 credentialPresentmentData: credentialPresentmentData,
                 preselectedDocuments: preselectedDocuments,
-                onDocumentsInFocus: { documents in onDocumentsInFocus(documents) }
-            )
+                onDocumentsInFocus: { documents in onDocumentsInFocus(documents) },
+                transactionData: nil
+            ) as CredentialPresentmentSelection?
         },
         preferSignatureToKeyAgreement: false,
         domainMdocSignature: TestAppUtils.shared.CREDENTIAL_DOMAIN_MDOC_USER_AUTH,

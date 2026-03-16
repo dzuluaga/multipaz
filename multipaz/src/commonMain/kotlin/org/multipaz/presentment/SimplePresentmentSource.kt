@@ -9,6 +9,7 @@ import org.multipaz.document.DocumentStore
 import org.multipaz.documenttype.DocumentTypeRepository
 import org.multipaz.eventlogger.SimpleEventLogger
 import org.multipaz.mdoc.zkp.ZkSystemRepository
+import org.multipaz.openid.TransactionData
 import org.multipaz.prompt.ShowConsentPromptFn
 import org.multipaz.prompt.promptModelRequestConsent
 import org.multipaz.request.JsonRequestedClaim
@@ -69,14 +70,16 @@ class SimplePresentmentSource(
         trustMetadata: TrustMetadata?,
         credentialPresentmentData: CredentialPresentmentData,
         preselectedDocuments: List<Document>,
-        onDocumentsInFocus: (documents: List<Document>) -> Unit
+        onDocumentsInFocus: (documents: List<Document>) -> Unit,
+        transactionData: Map<String, List<TransactionData>>?
     ): CredentialPresentmentSelection? {
         return showConsentPromptFn(
             requester,
             trustMetadata,
             credentialPresentmentData,
             preselectedDocuments,
-            onDocumentsInFocus
+            onDocumentsInFocus,
+            transactionData
         )
     }
 

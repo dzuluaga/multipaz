@@ -33,6 +33,7 @@ extension SimplePresentmentSource.Companion {
             _ credentialPresentmentData: CredentialPresentmentData,
             _ preselectedDocuments: [Document],
             _ onDocumentsInFocus: @escaping @Sendable (_ documents: [Document]) -> Void,
+            _ transactionData: [String: [TransactionData]]?
         ) async -> CredentialPresentmentSelection?,
         preferSignatureToKeyAgreement: Bool = true,
         domainMdocSignature: String? = nil,
@@ -76,30 +77,33 @@ private class ResolveTrustHandler: KotlinSuspendFunction1 {
     }
 }
 
-private class ShowConsentPromptHandler: KotlinSuspendFunction5 {
+private class ShowConsentPromptHandler: KotlinSuspendFunction6 {
     let f: @Sendable (
         _ requester: Requester,
         _ trustMetadata: TrustMetadata?,
         _ credentialPresentmentData: CredentialPresentmentData,
         _ preselectedDocuments: [Document],
         _ onDocumentsInFocus: @escaping @Sendable (_ documents: [Document]) -> Void,
+        _ transactionData: [String: [TransactionData]]?
     ) async -> CredentialPresentmentSelection?
-    
+
     init(f: @escaping @Sendable (
         _ requester: Requester,
         _ trustMetadata: TrustMetadata?,
         _ credentialPresentmentData: CredentialPresentmentData,
         _ preselectedDocuments: [Document],
         _ onDocumentsInFocus: @escaping @Sendable (_ documents: [Document]) -> Void,
+        _ transactionData: [String: [TransactionData]]?
     ) async -> CredentialPresentmentSelection?) {
         self.f = f
     }
 
-    func __invoke(p1: Any?, p2: Any?, p3: Any?, p4: Any?, p5: Any?, completionHandler: @escaping @Sendable (Any?, (any Error)?) -> Void) {
+    func __invoke(p1: Any?, p2: Any?, p3: Any?, p4: Any?, p5: Any?, p6: Any?, completionHandler: @escaping @Sendable (Any?, (any Error)?) -> Void) {
         let requester = p1 as! Requester
         let trustMetadata = p2 as! TrustMetadata?
         let credentialPresentmentData = p3 as! CredentialPresentmentData
         let preselectedDocuments = p4 as! [Document]
+        let transactionData = p6 as! [String: [TransactionData]]?
         let f = self.f
         Task {
             // TODO: The cast for onDocumentsInFocus fails at runtime, figure out how to make it work
@@ -108,7 +112,8 @@ private class ShowConsentPromptHandler: KotlinSuspendFunction5 {
                 trustMetadata,
                 credentialPresentmentData,
                 preselectedDocuments,
-                { documents in }
+                { documents in },
+                transactionData
             )
             completionHandler(value, nil)
         }

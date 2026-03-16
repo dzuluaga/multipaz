@@ -234,8 +234,14 @@ data class DcqlQuery(
             //
             for ((_, response) in credentialQueryIdToResponse) {
                 if (response.matches.isEmpty()) {
+                    val query = response.credentialQuery
+                    val typeHint = query.mdocDocType
+                        ?: query.vctValues?.joinToString()
+                        ?: query.format
                     throw DcqlCredentialQueryException(
-                        "No matches for credential query with id ${response.credentialQuery.id}"
+                        "No matches for credential query with id '${query.id}'" +
+                            " (format=${query.format}, type=$typeHint)." +
+                            " Ensure a credential of this type is provisioned in the document store."
                     )
                 }
                 val matches = mutableListOf<CredentialPresentmentSetOptionMemberMatch>()

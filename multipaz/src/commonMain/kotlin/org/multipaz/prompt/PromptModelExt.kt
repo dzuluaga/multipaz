@@ -1,6 +1,8 @@
 package org.multipaz.prompt
 
 import org.multipaz.document.Document
+import org.multipaz.documenttype.TransactionDataTypeRepository
+import org.multipaz.openid.TransactionData
 import org.multipaz.presentment.CredentialPresentmentData
 import org.multipaz.presentment.CredentialPresentmentSelection
 import org.multipaz.prompt.PassphrasePromptDialogModel.PassphraseRequest
@@ -89,7 +91,9 @@ suspend fun PromptModel.requestConsent(
     trustMetadata: TrustMetadata?,
     credentialPresentmentData: CredentialPresentmentData,
     preselectedDocuments: List<Document>,
-    onDocumentsInFocus: (documents: List<Document>) -> Unit
+    onDocumentsInFocus: (documents: List<Document>) -> Unit,
+    transactionData: Map<String, List<TransactionData>>? = null,
+    transactionDataTypeRepository: TransactionDataTypeRepository? = null
 ): CredentialPresentmentSelection {
     return getDialogModel(ConsentPromptDialogModel.DialogType).displayPrompt(
         parameters = ConsentPromptDialogModel.ConsentPromptRequest(
@@ -98,6 +102,8 @@ suspend fun PromptModel.requestConsent(
             credentialPresentmentData = credentialPresentmentData,
             preselectedDocuments = preselectedDocuments,
             onDocumentsInFocus = onDocumentsInFocus,
+            transactionData = transactionData,
+            transactionDataTypeRepository = transactionDataTypeRepository,
         )
     )
 }

@@ -18,6 +18,7 @@ import kotlinx.serialization.json.putJsonObject
 import org.multipaz.cbor.Bstr
 import org.multipaz.cbor.Cbor
 import org.multipaz.cbor.Simple
+import org.multipaz.cbor.Tstr
 import org.multipaz.cbor.addCborArray
 import org.multipaz.cbor.buildCborArray
 import org.multipaz.credential.Credential
@@ -34,6 +35,7 @@ import org.multipaz.document.Document
 import org.multipaz.eventlogger.EventPresentmentData
 import org.multipaz.webtoken.buildJwt
 import org.multipaz.mdoc.credential.MdocCredential
+import org.multipaz.mdoc.devicesigned.buildDeviceNamespaces
 import org.multipaz.mdoc.response.DeviceResponse
 import org.multipaz.mdoc.response.MdocDocument
 import org.multipaz.mdoc.response.buildDeviceResponse
@@ -438,14 +440,14 @@ object OpenID4VP {
         val transactionDataMap = request["transaction_data"]?.let {
             TransactionData.parse(it)
         }
-        // TODO: incorporate transaction data into the consent prompt and event logging
         val trustMetadata = source.resolveTrust(requester)
         val selection = source.showConsentPrompt(
             requester = requester,
             trustMetadata = trustMetadata,
             credentialPresentmentData = dcqlResponse,
             preselectedDocuments = preselectedDocuments,
-            onDocumentsInFocus = onDocumentsInFocus
+            onDocumentsInFocus = onDocumentsInFocus,
+            transactionData = transactionDataMap
         )
         if (selection == null) {
             throw PresentmentCanceledException("User canceled at document selection time")
@@ -469,7 +471,8 @@ object OpenID4VP {
                     nonce = nonce,
                     reReaderPublicKey = reReaderPublicKey,
                     responseUri = responseUri,
-                    requestIsForZk = requestIsForZk
+                    requestIsForZk = requestIsForZk,
+                    transactionData = transactionDataMap?.get(match.source.credentialQuery.id)
                 )
             } else if (match.source.credentialQuery.vctValues != null) {
                 openID4VPSdJwt(
@@ -557,6 +560,7 @@ object OpenID4VP {
         reReaderPublicKey: EcPublicKey?,
         responseUri: String?,
         requestIsForZk: Boolean,
+        transactionData: List<TransactionData>? = null,
         onDocumentsInFocus: (documents: List<Document>) -> Unit = {},
     ): String {
         match.source as CredentialMatchSourceOpenID4VP
@@ -660,10 +664,34 @@ object OpenID4VP {
         Logger.iCbor(TAG, "encodedSessionTranscript", encodedSessionTranscript)
 
         val mdocCredential = match.credential as MdocCredential
+        val deviceNamespaces = buildDeviceNamespaces {
+            if (transactionData != null) {
+                addNamespace("org.multipaz.transaction_data") {
+                    addDataElement(
+                        "transaction_data_hashes",
+                        buildCborArray {
+                            transactionData.forEach { data ->
+                                add(Bstr(data.hash.toByteArray()))
+                            }
+                        }
+                    )
+                    transactionData.firstNotNullOfOrNull { it.hashAlgorithm }?.let { hashAlgorithm ->
+                        transactionData.forEach { data ->
+                            check(hashAlgorithm == (data.hashAlgorithm ?: Algorithm.SHA256))
+                        }
+                        addDataElement(
+                            "transaction_data_hashes_alg",
+                            Tstr(hashAlgorithm.hashAlgorithmName!!)
+                        )
+                    }
+                }
+            }
+        }
         val document = MdocDocument.fromPresentment(
             sessionTranscript = Cbor.decode(encodedSessionTranscript),
             credential = mdocCredential,
             requestedClaims = match.source.credentialQuery.claims as List<MdocRequestedClaim>,
+            deviceNamespaces = deviceNamespaces,
         )
         val deviceResponse = buildDeviceResponse(
             sessionTranscript = Cbor.decode(encodedSessionTranscript),

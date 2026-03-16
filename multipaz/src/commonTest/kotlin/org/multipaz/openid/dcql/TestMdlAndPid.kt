@@ -90,7 +90,7 @@ class TestMdlAndPid {
                 presentmentSource = harness.presentmentSource
             ).prettyPrint().trim()
         }
-        assertEquals("No matches for credential query with id my_mdl", e.message)
+        assertEquals("No matches for credential query with id 'my_mdl' (format=mso_mdoc, type=org.iso.18013.5.1.mDL). Ensure a credential of this type is provisioned in the document store.", e.message)
     }
 
     @Test
@@ -103,7 +103,7 @@ class TestMdlAndPid {
                 presentmentSource = harness.presentmentSource
             ).prettyPrint().trim()
         }
-        assertEquals("No matches for credential query with id my_pid", e.message)
+        assertEquals("No matches for credential query with id 'my_pid' (format=dc+sd-jwt, type=https://credentials.example.com/identity_credential). Ensure a credential of this type is provisioned in the document store.", e.message)
     }
 
     @Test
@@ -116,7 +116,7 @@ class TestMdlAndPid {
                 presentmentSource = harness.presentmentSource
             ).prettyPrint().trim()
         }
-        assertEquals("No matches for credential query with id my_mdl", e.message)
+        assertEquals("No matches for credential query with id 'my_mdl' (format=mso_mdoc, type=org.iso.18013.5.1.mDL). Ensure a credential of this type is provisioned in the document store.", e.message)
     }
 
     @Test

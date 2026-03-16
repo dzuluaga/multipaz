@@ -135,7 +135,7 @@ class TestSingleSdJwtVcQuery {
                 presentmentSource = harness.presentmentSource
             )
         }
-        assertEquals("No matches for credential query with id my_credential", e.message)
+        assertEquals("No matches for credential query with id 'my_credential' (format=dc+sd-jwt, type=${EUPersonalID.EUPID_VCT}). Ensure a credential of this type is provisioned in the document store.", e.message)
     }
 
     @Test
@@ -149,7 +149,7 @@ class TestSingleSdJwtVcQuery {
                 presentmentSource = harness.presentmentSource
             )
         }
-        assertEquals("No matches for credential query with id my_credential", e.message)
+        assertEquals("No matches for credential query with id 'my_credential' (format=dc+sd-jwt, type=${EUPersonalID.EUPID_VCT}). Ensure a credential of this type is provisioned in the document store.", e.message)
     }
 
     @Test

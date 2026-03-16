@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import coil3.ImageLoader
 import kotlinx.coroutines.launch
 import org.multipaz.document.Document
+import org.multipaz.documenttype.TransactionDataTypeRepository
+import org.multipaz.openid.TransactionData
 import org.multipaz.presentment.CredentialPresentmentData
 import org.multipaz.presentment.CredentialPresentmentSelection
 import org.multipaz.request.Requester
@@ -52,6 +54,8 @@ fun ConsentModalBottomSheet(
     imageLoader: ImageLoader?,
     maxHeight: Dp? = null,
     onDocumentsInFocus: (documents: List<Document>) -> Unit,
+    transactionData: Map<String, List<TransactionData>>? = null,
+    transactionDataTypeRepository: TransactionDataTypeRepository? = null,
     onConfirm: (selection: CredentialPresentmentSelection) -> Unit,
     onCancel: () -> Unit = {},
 ) {
@@ -71,6 +75,8 @@ fun ConsentModalBottomSheet(
             preselectedDocuments = preselectedDocuments,
             imageLoader = imageLoader,
             onDocumentsInFocus = onDocumentsInFocus,
+            transactionData = transactionData,
+            transactionDataTypeRepository = transactionDataTypeRepository,
             onConfirm = onConfirm,
             onCancel = {
                 coroutineScope.launch { sheetState.hide() }

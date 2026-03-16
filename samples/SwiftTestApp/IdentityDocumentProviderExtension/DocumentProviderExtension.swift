@@ -77,13 +77,14 @@ func getPresentmentSource() async -> PresentmentSource {
             }
             return nil
         },
-        showConsentPromptFn: { requester, trustMetadata, credentialPresentmentData, preselectedDocuments, onDocumentsInFocus in
+        showConsentPromptFn: { requester, trustMetadata, credentialPresentmentData, preselectedDocuments, onDocumentsInFocus, transactionData in
             try! await promptModelSilentConsent(
                 requester: requester,
                 trustMetadata: trustMetadata,
                 credentialPresentmentData: credentialPresentmentData,
                 preselectedDocuments: preselectedDocuments,
-                onDocumentsInFocus: { documents in onDocumentsInFocus(documents) }
+                onDocumentsInFocus: { documents in onDocumentsInFocus(documents) },
+                transactionData: transactionData
             )
         },
         preferSignatureToKeyAgreement: false,

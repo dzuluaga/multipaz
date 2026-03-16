@@ -7,6 +7,7 @@ import org.multipaz.document.DocumentStore
 import org.multipaz.documenttype.DocumentTypeRepository
 import org.multipaz.eventlogger.EventLogger
 import org.multipaz.mdoc.zkp.ZkSystemRepository
+import org.multipaz.openid.TransactionData
 import org.multipaz.request.RequestedClaim
 import org.multipaz.request.Requester
 import org.multipaz.trustmanagement.TrustMetadata
@@ -70,7 +71,8 @@ abstract class PresentmentSource(
         trustMetadata: TrustMetadata?,
         credentialPresentmentData: CredentialPresentmentData,
         preselectedDocuments: List<Document>,
-        onDocumentsInFocus: (documents: List<Document>) -> Unit
+        onDocumentsInFocus: (documents: List<Document>) -> Unit,
+        transactionData: Map<String, List<TransactionData>>? = null
     ): CredentialPresentmentSelection?
 
     /**

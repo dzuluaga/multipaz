@@ -74,7 +74,8 @@ struct ConsentPromptScreen: View {
                                 trustMetadata: consentData.trustMetadata,
                                 credentialPresentmentData: consentData.presentmentData,
                                 preselectedDocuments: [],
-                                onDocumentsInFocus: { documents in }
+                                onDocumentsInFocus: { documents in },
+                                transactionData: nil
                             )
                             if selection != nil {
                                 print("Selection: \(selection!)")
@@ -572,13 +573,14 @@ private func calcConsentData(
         resolveTrustFn: { requester in
             return nil
         },
-        showConsentPromptFn: { requester, trustMetadata, credentialPresentmentData, preselectedDocuments, onDocumentsInFocus in
+        showConsentPromptFn: { requester, trustMetadata, credentialPresentmentData, preselectedDocuments, onDocumentsInFocus, transactionData in
             try! await promptModelSilentConsent(
                 requester: requester,
                 trustMetadata: trustMetadata,
                 credentialPresentmentData: credentialPresentmentData,
                 preselectedDocuments: preselectedDocuments,
-                onDocumentsInFocus: { documents in onDocumentsInFocus(documents) }
+                onDocumentsInFocus: { documents in onDocumentsInFocus(documents) },
+                transactionData: transactionData
             )
         },
         domainMdocSignature: "mdoc",

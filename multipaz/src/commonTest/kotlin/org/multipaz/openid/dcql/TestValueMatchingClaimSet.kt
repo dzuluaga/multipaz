@@ -279,6 +279,6 @@ class TestValueMatchingClaimSet {
                 presentmentSource = harness.presentmentSource
             )
         }
-        assertEquals("No matches for credential query with id my_credential", e.message)
+        assertEquals("No matches for credential query with id 'my_credential' (format=mso_mdoc, type=org.iso.18013.5.1.mDL). Ensure a credential of this type is provisioned in the document store.", e.message)
     }
 }
