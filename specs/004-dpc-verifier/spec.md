@@ -352,8 +352,8 @@ As a user shopping online, when I click "Pay," Chrome shows my payment card from
 **Acceptance Scenarios**:
 
 1. **Given** a provisioned DPC in the wallet and a payment request from a merchant, **When** Chrome mediates the DC API request, **Then** the wallet shows the consent screen with card art and transaction details.
-2. **Given** the user declines in the wallet, **When** Chrome returns the decline, **Then** the SDK returns `{verified: false, error: "user_declined"}`.
-3. **Given** a response with tampered transaction data hashes, **When** the verifier checks, **Then** it returns `{verified: false, error: "txn_data_mismatch"}`.
+2. **Given** the user declines in the wallet, **When** Chrome returns the decline, **Then** the SDK returns `{verified: false, credential_format: "mdoc", doctype: "org.multipaz.payment.sca.1", error: "user_declined", error_description: "..."}`.
+3. **Given** a response with tampered transaction data hashes, **When** the verifier checks, **Then** it returns `{verified: false, credential_format: "mdoc", doctype: "org.multipaz.payment.sca.1", error: "txn_data_mismatch", error_description: "..."}`.
 
 ---
 
@@ -380,7 +380,7 @@ As a Kotlin developer building a payment service, I write 11 lines of backend Ko
 - What happens when the wallet sends a response for a credential type other than a payment credential? The verifier MUST reject it.
 - What happens when multiple responses are submitted for the same session? First wins, 409 Conflict for subsequent.
 - What happens when the transaction data contains zero or negative amount? The verifier MUST reject with a validation error.
-- What happens when the user declines in the wallet? The SDK returns `{verified: false, error: "user_declined"}`.
+- What happens when the user declines in the wallet? The SDK returns `{verified: false, credential_format: "mdoc", doctype: "org.multipaz.payment.sca.1", error: "user_declined", error_description: "..."}`.
 - What happens when the browser doesn't support the DC API? The SDK MUST detect this and throw a clear error (e.g., "Digital Credentials API not supported in this browser"). Check via `"digital" in navigator.credentials`.
 - What happens when no wallet is registered as a credential provider? Chrome shows an empty picker or an error. The SDK catches the `NotAllowedError` and returns an appropriate error.
 - What happens when CORS blocks the response submission? The verifier MUST configure CORS for allowed origins. The SDK logs a clear error identifying the CORS misconfiguration.
@@ -420,7 +420,7 @@ As a Kotlin developer building a payment service, I write 11 lines of backend Ko
 
 - **DPC Verification Session**: Session ID, nonce, ephemeral key pair, DCQL query, transaction data bytes, DC API request, status, result. Readable until TTL expiry.
 - **Payment Request**: Payee, amount, currency. Validated on receipt. Kotlin DSL builder available.
-- **DPC Verification Result**: verified, credential_format, payment claims, txn_data_verified, trust_warning, error, error_description.
+- **DPC Verification Result**: `verified`, `credential_format`, `doctype`, nested `payment` object (`instrument_id`, `holder_name`, `masked_account_ref`, `issuer_name`, `txn_data_verified`), `trust_warning`, `error`, `error_description`.
 
 ## Success Criteria *(mandatory)*
 
