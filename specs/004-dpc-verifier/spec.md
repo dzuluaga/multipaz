@@ -188,7 +188,7 @@ Session management, nonce generation, ephemeral key pairs, DCQL query constructi
 
 ## Standards Alignment
 
-The library is built on **OpenID4VP 1.0 + HAIP 1.0 as the core protocol engine**, delivered via the **W3C Digital Credentials API** in Chrome. **TS12 is the first pluggable payment profile.**
+The library is built on **OpenID4VP 1.0 + HAIP 1.0 as the core protocol engine**, delivered via the **W3C Digital Credentials API** in Chrome. The multipaz DPC profile ships in Phase 1; **TS12 is the first extension added via the format SPI** in a future release.
 
 | Standard | Body | Status | Role in this library |
 |----------|------|--------|---------------------|
@@ -291,6 +291,7 @@ These fields map directly to the `DigitalCredential` interface: `credential.prot
 {
   "verified": true,
   "credential_format": "mdoc",
+    "doctype": "org.multipaz.payment.sca.1",
   "payment": {
     "instrument_id": "tok-abc-123",
     "holder_name": "Jane Doe",
@@ -401,7 +402,7 @@ As a Kotlin developer building a payment service, I write 11 lines of backend Ko
 - **FR-005**: The JS SDK (`sdk.js`) MUST handle the full DC API ceremony: POST to initiate, call `navigator.credentials.get()`, POST the response, return the result. The SDK MUST: (a) detect missing DC API support (`"digital" in navigator.credentials`) and throw a clear error; (b) check `navigator.userActivation.isActive` and throw if called outside a user gesture; (c) check secure context and throw on non-HTTPS origins (except localhost); (d) handle `NotAllowedError` (user cancel/no wallet) gracefully.
 - **FR-006**: The verifier MUST perform ALL verification steps atomically as defined in the Verification Pipeline (steps A-E). Session transcript MUST use `OpenID4VPDCAPIHandover` format.
 - **FR-007**: The result endpoint MUST return 200 with result, 202 Accepted with `Retry-After` for pending, 404 for expired. Optional `eudiCompat` flag for 400 on pending.
-- **FR-008**: Verified results MUST include: `credential_format`, `instrument_id`, `holder_name`, `masked_account_ref`, `issuer_name`, `txn_data_verified`.
+- **FR-008**: Verified results MUST include: `credential_format`, `doctype` (e.g., `org.multipaz.payment.sca.1`), and a nested `payment` object containing `instrument_id`, `holder_name`, `masked_account_ref`, `issuer_name`, `txn_data_verified`. Failed/declined results MUST include `verified: false`, `credential_format`, `doctype`, `error`, and `error_description`.
 - **FR-009**: Session storage MUST be pluggable via `SessionStorage` interface with in-memory default.
 - **FR-010**: The library MUST validate all merchant input: positive amount, non-empty payee, valid ISO 4217 currency.
 - **FR-011**: The library MUST generate unique transaction ID per session unless supplied.

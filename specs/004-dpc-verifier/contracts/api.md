@@ -120,6 +120,7 @@ These fields map directly to the `DigitalCredential` interface: `credential.prot
 {
   "verified": true,
   "credential_format": "mdoc",
+  "doctype": "org.multipaz.payment.sca.1",
   "payment": {
     "instrument_id": "tok-abc-123",
     "holder_name": "Jane Doe",
@@ -144,6 +145,8 @@ If the trust manager was not configured, the response includes an additional fie
 ```json
 {
   "verified": false,
+  "credential_format": "mdoc",
+  "doctype": "org.multipaz.payment.sca.1",
   "error": "issuer_trust_failed",
   "error_description": "Issuer certificate chain not trusted"
 }
@@ -154,6 +157,8 @@ If the trust manager was not configured, the response includes an additional fie
 ```json
 {
   "verified": false,
+  "credential_format": "mdoc",
+  "doctype": "org.multipaz.payment.sca.1",
   "error": "user_declined",
   "error_description": "User cancelled the payment in the wallet"
 }

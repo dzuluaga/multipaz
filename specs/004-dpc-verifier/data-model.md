@@ -9,14 +9,14 @@ Tracks the lifecycle of a single payment verification via the W3C Digital Creden
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| id | String | Yes | Unguessable session ID (128+ bits of cryptographic entropy) |
+| id | String | Yes | Unguessable session ID (128+ bits of cryptographic entropy). Exposed to the merchant as `transaction_id` in the API response. |
 | nonce | ByteArray | Yes | Random nonce for the authorization request (15 bytes) |
 | encryptionKeyPair | EcKeyPair (P-256) | Yes | Ephemeral key pair for JWE response encryption/decryption |
 | dcqlQuery | String | Yes | JSON-serialized DCQL query |
 | dcRequest | JsonObject | Yes | The complete DC API request parameters (`digital.requests`, `mediation`) returned to the merchant and passed to `navigator.credentials.get()` |
 | transactionDataBytes | List\<ByteArray\> | Yes | Exact base64url-encoded transaction data items as emitted — stored for byte-exact hash verification |
 | transactionDataProfile | String | Yes | Transaction data profile type identifier (e.g., `org.multipaz.transaction_data.payment`) |
-| origin | String | Yes | Expected origin of the merchant site (e.g., `https://merchant.example.com`). Used for `expected_origins` in the signed request and for `OpenID4VPDCAPIHandover` session transcript construction during verification. |
+| expected_origins | List\<String\> | Yes | Expected origins of the merchant site (e.g., `["https://merchant.example.com"]`). Used for `expected_origins` in the signed request and for `OpenID4VPDCAPIHandover` session transcript construction during verification. |
 | status | SessionStatus | Yes | Current state: `requested`, `submitted`, `verified`, `failed`, `declined`, `expired` |
 | result | DpcVerificationResult? | No | Populated after verification completes |
 | createdAt | Instant | Yes | Session creation timestamp |
@@ -62,14 +62,21 @@ The typed outcome of verification. Returned to the merchant on result retrieval.
 |-------|------|----------|-------------|
 | verified | Boolean | Yes | Whether all verification checks passed |
 | credential_format | String | Yes | Format used: "mdoc" (future: "sd-jwt-vc") |
-| instrument_id | String | If verified | Tokenized payment instrument identifier from DPC |
-| holder_name | String | If verified | Payment account holder name from DPC |
-| masked_account_ref | String | If verified | Masked account hint (e.g., "*4242") from DPC |
-| issuer_name | String | If verified | Human-readable issuer name from DPC |
-| txn_data_verified | Boolean | If verified | Whether transaction data hashes matched the originals |
+| doctype | String | Yes | Credential doctype (e.g., `org.multipaz.payment.sca.1`) |
+| payment | PaymentClaims? | If verified | Nested object containing payment-specific claims (see below) |
 | trust_warning | String? | No | Present if trust manager was not configured |
 | error | String | If failed | Machine-readable error code (snake_case) |
 | error_description | String | If failed | Human-readable error message |
+
+**PaymentClaims** (nested inside `payment`):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| instrument_id | String | Tokenized payment instrument identifier from DPC |
+| holder_name | String | Payment account holder name from DPC |
+| masked_account_ref | String | Masked account hint (e.g., "*4242") from DPC |
+| issuer_name | String | Human-readable issuer name from DPC |
+| txn_data_verified | Boolean | Whether transaction data hashes matched the originals |
 
 **Error codes**:
 - `issuer_trust_failed` — Issuer certificate chain not trusted
@@ -110,7 +117,7 @@ Merchant JS ──POST /presentations──→ DpcSession (created)
                                           ├── stores dcRequest (DC API parameters)
                                           ├── stores transactionDataBytes (exact emitted bytes)
                                           ├── stores encryptionKeyPair (for JWE decrypt)
-                                          ├── stores origin (for session transcript)
+                                          ├── stores expected_origins (for session transcript)
                                           │
                                           ▼
                                Merchant JS calls

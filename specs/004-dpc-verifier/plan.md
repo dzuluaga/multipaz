@@ -5,7 +5,7 @@
 
 ## Summary
 
-Build a Ktor plugin (`multipaz-dpc-verifier`) that handles OpenID4VP verification of Digital Payment Credentials via the W3C Digital Credentials API. The library exposes three HTTP endpoints (all merchant-facing) plus a served JS SDK, manages sessions internally, and provides a Kotlin DSL builder for merchant developers. The primary flow is browser-mediated: the merchant's JavaScript calls `navigator.credentials.get()` via Chrome's DC API, and the response comes back through the browser — no wallet-facing endpoints, no QR codes. Phase 1 supports mdoc credentials with a format SPI designed for future SD-JWT VC support. The protocol is `openid4vp-v1-signed` within the DC API; TS12 is the first payment profile.
+Build a Ktor plugin (`multipaz-dpc-verifier`) that handles OpenID4VP verification of Digital Payment Credentials via the W3C Digital Credentials API. The library exposes three HTTP endpoints (all merchant-facing) plus a served JS SDK, manages sessions internally, and provides a Kotlin DSL builder for merchant developers. The primary flow is browser-mediated: the merchant's JavaScript calls `navigator.credentials.get()` via Chrome's DC API, and the response comes back through the browser — no wallet-facing endpoints, no QR codes. Phase 1 supports mdoc credentials with a format SPI designed for future SD-JWT VC support. The protocol is `openid4vp-v1-signed` within the DC API. Phase 1 uses the multipaz transaction data profile; TS12 is a future payment profile added via the format SPI.
 
 ## Technical Context
 
@@ -61,7 +61,9 @@ multipaz-dpc-verifier/
     │   ├── kotlin/org/multipaz/dpc/verifier/
     │   │   ├── DpcVerifierPlugin.kt         # Ktor plugin (install block, CORS config)
     │   │   ├── DpcVerificationRoute.kt      # Route DSL (dpcVerification block)
-    │   │   ├── DpcSession.kt                # Session model + in-memory storage
+    │   │   ├── DpcSession.kt                # Session model
+    │   │   ├── SessionStorage.kt            # Storage interface
+    │   │   ├── InMemorySessionStorage.kt    # In-memory implementation with TTL
     │   │   ├── DpcVerificationResult.kt     # Typed result
     │   │   ├── PaymentRequestBuilder.kt     # Kotlin DSL builder
     │   │   ├── CredentialFormatVerifier.kt   # Format SPI interface
@@ -75,8 +77,8 @@ multipaz-dpc-verifier/
     └── test/kotlin/org/multipaz/dpc/verifier/
         ├── DpcVerifierPluginTest.kt     # Plugin installation tests
         ├── InitiateHandlerTest.kt       # Initiation endpoint tests
-        ├── ResponseHandlerTest.kt       # Response submission tests
-        ├── VerificationPipelineTest.kt  # Verification logic tests
+        ├── VerificationPipelineTest.kt  # Response submission + verification logic tests
+        ├── ResultHandlerTest.kt         # Result polling + SDK serving tests
         └── EndToEndTest.kt             # Full flow with test wallet via DC API
 ```
 
