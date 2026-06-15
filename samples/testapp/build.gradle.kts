@@ -134,6 +134,15 @@ kotlin {
                 implementation(libs.ktor.client.android)
                 implementation(libs.process.phoenix)
                 implementation(libs.accompanist.drawablepainter)
+                // Native Hedera SDK for the x402 Hedera payment-method demo
+                // (Android/JVM only; the credential seam lives in androidMain).
+                implementation(libs.hedera.sdk)
+            }
+        }
+
+        val androidUnitTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
             }
         }
 
@@ -203,6 +212,14 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
             excludes += listOf("/META-INF/versions/9/OSGI-INF/MANIFEST.MF")
+            // The Hedera SDK pulls in grpc/netty/protobuf, which ship duplicate
+            // META-INF entries that otherwise fail the merge.
+            excludes += listOf(
+                "/META-INF/INDEX.LIST",
+                "/META-INF/DEPENDENCIES",
+                "/META-INF/io.netty.versions.properties",
+                "/META-INF/native-image/**",
+            )
         }
     }
     buildTypes {
