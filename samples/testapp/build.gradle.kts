@@ -1,5 +1,6 @@
 @file:OptIn(ExperimentalWasmDsl::class)
 
+import java.util.Properties
 import org.gradle.kotlin.dsl.implementation
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
@@ -25,11 +26,23 @@ val disableWebTargets = project.properties["disable.web.targets"]?.toString()?.t
 // "Associated Domains"
 val applinkHost = "apps.multipaz.org"
 
+// Hedera testnet operator for the x402 settlement demo. Read from a gitignored
+// local.properties (preferred) or the environment; absent ⇒ empty ⇒ the demo's
+// settlement path is simply disabled (never breaks the build).
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+fun secret(name: String): String =
+    localProps.getProperty(name) ?: System.getenv(name) ?: ""
+
 buildConfig {
     packageName("org.multipaz.testapp")
     buildConfigField("TEST_APP_UPDATE_URL", System.getenv("TEST_APP_UPDATE_URL") ?: "")
     buildConfigField("TEST_APP_UPDATE_WEBSITE_URL", System.getenv("TEST_APP_UPDATE_WEBSITE_URL") ?: "")
     buildConfigField("APPLINK_HOST", applinkHost)
+    buildConfigField("HEDERA_OPERATOR_ID", secret("HEDERA_OPERATOR_ID"))
+    buildConfigField("HEDERA_OPERATOR_KEY", secret("HEDERA_OPERATOR_KEY"))
     useKotlinOutput { internalVisibility = false }
 }
 
@@ -143,6 +156,11 @@ kotlin {
         val androidUnitTest by getting {
             dependencies {
                 implementation(kotlin("test"))
+                // The Hedera SDK uses Android's gRPC transport at runtime; a host (JVM) unit
+                // test needs a functional gRPC channel for the live-settle test
+                // (HEDERA_LIVE=true). grpc-okhttp works on the JVM too; version matches the
+                // SDK's grpc-api (1.72.0).
+                runtimeOnly("io.grpc:grpc-okhttp:1.72.0")
             }
         }
 
