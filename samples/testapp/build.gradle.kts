@@ -150,17 +150,25 @@ kotlin {
                 // Native Hedera SDK for the x402 Hedera payment-method demo
                 // (Android/JVM only; the credential seam lives in androidMain).
                 implementation(libs.hedera.sdk)
+                // The Hedera SDK needs a gRPC transport provider at runtime to reach the
+                // network; supply grpc-okhttp explicitly (works on Android and the JVM host).
+                // Version matches the SDK's grpc-api (1.72.0).
+                implementation("io.grpc:grpc-okhttp:1.72.0")
             }
         }
 
         val androidUnitTest by getting {
             dependencies {
                 implementation(kotlin("test"))
-                // The Hedera SDK uses Android's gRPC transport at runtime; a host (JVM) unit
-                // test needs a functional gRPC channel for the live-settle test
-                // (HEDERA_LIVE=true). grpc-okhttp works on the JVM too; version matches the
-                // SDK's grpc-api (1.72.0).
-                runtimeOnly("io.grpc:grpc-okhttp:1.72.0")
+                // grpc-okhttp transport comes from androidMain (needed for the live-settle test).
+            }
+        }
+
+        val androidInstrumentedTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation(libs.androidx.test.junit)
+                implementation("androidx.test:runner:1.6.2")
             }
         }
 
@@ -225,6 +233,7 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = projectVersionCode
         versionName = projectVersionName
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     packaging {
         resources {
