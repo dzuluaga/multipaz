@@ -145,6 +145,7 @@ import org.multipaz.testapp.ui.ScreenLockScreen
 import org.multipaz.testapp.ui.SecureEnclaveSecureAreaScreen
 import org.multipaz.testapp.ui.SettingsScreen
 import org.multipaz.testapp.ui.ShareSheetScreen
+import org.multipaz.testapp.ui.HederaPayScreen
 import org.multipaz.testapp.ui.ShowResponseScreen
 import org.multipaz.testapp.ui.SoftwareSecureAreaScreen
 import org.multipaz.testapp.ui.StartScreen
@@ -1088,6 +1089,11 @@ class App private constructor (val promptModel: PromptModel) {
                                     AndroidKeystoreSecureAreaDestination
                                 )
                             },
+                            onClickHederaPay = {
+                                navController.navigate(
+                                    HederaPayDestination
+                                )
+                            },
                             onClickCloudSecureArea = {
                                 navController.navigate(
                                     CloudSecureAreaDestination
@@ -1436,6 +1442,14 @@ class App private constructor (val promptModel: PromptModel) {
                                     )
                                 )
                             }
+                        )
+                    }
+                }
+                composable<HederaPayDestination> { backStackEntry ->
+                    WithAppBar(navController, "x402 Hedera Payment") {
+                        HederaPayScreen(
+                            promptModel = promptModel,
+                            showToast = { message -> showToast(message) },
                         )
                     }
                 }

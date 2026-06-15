@@ -35,6 +35,7 @@ fun StartScreen(
     onClickTrustedVerifiers: () -> Unit = {},
     onClickSoftwareSecureArea: () -> Unit = {},
     onClickAndroidKeystoreSecureArea: () -> Unit = {},
+    onClickHederaPay: () -> Unit = {},
     onClickCloudSecureArea: () -> Unit = {},
     onClickSecureEnclaveSecureArea: () -> Unit = {},
     onClickPassphraseEntryField: () -> Unit = {},
@@ -161,6 +162,11 @@ fun StartScreen(
                         item {
                             TextButton(onClick = onClickAndroidKeystoreSecureArea) {
                                 Text("Android Keystore Secure Area")
+                            }
+                        }
+                        item {
+                            TextButton(onClick = onClickHederaPay) {
+                                Text("x402 Hedera Payment")
                             }
                         }
                     }

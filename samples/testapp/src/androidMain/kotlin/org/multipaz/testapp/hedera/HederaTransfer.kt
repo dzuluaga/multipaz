@@ -10,6 +10,7 @@ import com.hedera.hashgraph.sdk.proto.TransactionBody
 import com.hedera.hashgraph.sdk.proto.TransactionList
 import java.util.Base64
 import org.multipaz.crypto.EcSignature
+import org.multipaz.prompt.Reason
 
 /**
  * The credential ↔ Hedera signing seam (x402 "exact" scheme for Hedera).
@@ -58,12 +59,13 @@ class SecureAreaSignedTransfer(
 suspend fun signFrozenWithCredential(
     tx: TransferTransaction,
     credential: HederaAccountCredential,
+    unlockReason: Reason = Reason.Unspecified,
 ): SecureAreaSignedTransfer {
     val hederaKey = credential.hederaPublicKey()
     val signatures = TransactionList.parseFrom(tx.toBytes()).transactionListList.map { wrapped ->
         val bodyBytes = SignedTransaction.parseFrom(wrapped.signedTransactionBytes)
             .bodyBytes.toByteArray()
-        val signature = credential.secureArea.sign(credential.alias, bodyBytes)
+        val signature = credential.secureArea.sign(credential.alias, bodyBytes, unlockReason)
         tx.addSignature(hederaKey, signature.toCoseEncoded())
         bodyBytes to signature
     }
