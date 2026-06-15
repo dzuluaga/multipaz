@@ -51,6 +51,7 @@ import org.multipaz.utopia.knowntypes.DigitalPaymentCredential
 import org.multipaz.documenttype.knowntypes.DrivingLicense
 import org.multipaz.documenttype.knowntypes.EUPersonalID
 import org.multipaz.documenttype.knowntypes.IDPass
+import org.multipaz.testapp.hedera.provisionPlatformHederaAccount
 import org.multipaz.documenttype.knowntypes.PhotoID
 import org.multipaz.utopia.knowntypes.UtopiaMovieTicket
 import org.multipaz.mdoc.credential.MdocCredential
@@ -457,6 +458,8 @@ object TestAppUtils {
                     displayName = "Erika's ID pass",
                     cardArtResource = Res.drawable.pid_card_art
                 )
+                // Self-custodial Hedera account (Android/KeyMint 2.0+ only); no-op elsewhere.
+                provisionPlatformHederaAccount(documentStore, secureArea)
                 return null
             }
         }

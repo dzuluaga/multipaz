@@ -23,16 +23,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.io.bytestring.ByteString
-import org.multipaz.crypto.Algorithm
-import org.multipaz.document.buildDocumentStore
+import kotlinx.io.bytestring.decodeToString
+import kotlinx.io.bytestring.encodeToByteString
+import org.multipaz.document.DocumentStore
 import org.multipaz.prompt.PromptModel
 import org.multipaz.prompt.Reason
-import org.multipaz.securearea.AndroidKeystoreCreateKeySettings
-import org.multipaz.securearea.AndroidKeystoreSecureArea
-import org.multipaz.securearea.SecureAreaRepository
-import org.multipaz.securearea.UserAuthenticationType
-import org.multipaz.storage.ephemeral.EphemeralStorage
 import org.multipaz.testapp.hedera.HederaAccountCredential
 import org.multipaz.testapp.hedera.HederaOperatorConfig
 import org.multipaz.testapp.hedera.buildRecipientBoundTransfer
@@ -44,7 +39,6 @@ import org.multipaz.testapp.hedera.verifyAndSettle
 import org.multipaz.testapp.hedera.verifyRecipientBoundWire
 import java.net.HttpURLConnection
 import java.net.URL
-import kotlin.time.Duration.Companion.seconds
 
 private const val AMOUNT_TINYBAR = 12_345L
 
@@ -59,11 +53,11 @@ private sealed interface PayState {
 actual fun HederaPayScreen(
     promptModel: PromptModel,
     showToast: (message: String) -> Unit,
+    documentStore: DocumentStore,
 ) {
     val coroutineScope = rememberCoroutineScope { promptModel }
     var state by remember { mutableStateOf<PayState>(PayState.Idle) }
     val config = remember { HederaOperatorConfig.fromBuildConfig() }
-    val curve25519 = remember { AndroidKeystoreSecureArea.Capabilities().curve25519Supported }
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()),
@@ -71,30 +65,27 @@ actual fun HederaPayScreen(
     ) {
         Text("x402 Hedera payment", style = MaterialTheme.typography.headlineSmall)
         Text(
-            "Pay $AMOUNT_TINYBAR tinybar from a Hedera account whose Ed25519 key lives in this " +
-                "device's secure hardware (TEE). The key signs the transfer behind a biometric; " +
-                "blocky402 sponsors the fee and submits it to Hedera testnet.",
+            "Pays $AMOUNT_TINYBAR tinybar from the Hedera Account credential in this wallet — its " +
+                "Ed25519 key lives in the TEE. Provision it first via \"Create Test Documents in " +
+                "Platform Secure Area\". The key signs behind a biometric; blocky402 sponsors the " +
+                "fee and submits to Hedera testnet. The account is created once and reused.",
             style = MaterialTheme.typography.bodyMedium,
         )
 
-        when {
-            config == null -> Text(
+        if (config == null) {
+            Text(
                 "No operator configured. Add HEDERA_OPERATOR_ID / HEDERA_OPERATOR_KEY to " +
                     "local.properties to enable settlement.",
                 color = MaterialTheme.colorScheme.error,
             )
-            !curve25519 -> Text(
-                "This device's KeyMint lacks Curve25519 (needs KeyMint 2.0+), so a hardware-backed " +
-                    "Hedera key isn't available here.",
-                color = MaterialTheme.colorScheme.error,
-            )
-            else -> Button(
+        } else {
+            Button(
                 enabled = state !is PayState.Working,
                 onClick = {
                     coroutineScope.launch {
-                        state = PayState.Working("Creating hardware credential…")
+                        state = PayState.Working("Looking up Hedera account…")
                         state = try {
-                            pay(config) { step -> state = PayState.Working(step) }
+                            pay(documentStore, config) { step -> state = PayState.Working(step) }
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Exception) {
@@ -132,33 +123,34 @@ actual fun HederaPayScreen(
 }
 
 private suspend fun pay(
+    documentStore: DocumentStore,
     config: HederaOperatorConfig,
     onStep: (String) -> Unit,
 ): PayState.Done {
     val merchant = config.operatorId // the operator doubles as the demo merchant
 
-    // 1. Hedera account as a credential whose Ed25519 key lives in the TEE, biometric-gated.
-    val storage = EphemeralStorage()
-    val secureArea = AndroidKeystoreSecureArea.create(storage)
-    val store = buildDocumentStore(storage, SecureAreaRepository.Builder().add(secureArea).build()) {
-        addCredentialImplementation(HederaAccountCredential.CREDENTIAL_TYPE) { doc ->
-            HederaAccountCredential(doc)
-        }
+    // Use the persistent, TEE-backed credential provisioned with the test documents.
+    val credential = documentStore.listDocuments()
+        .flatMap { it.getCredentials() }
+        .filterIsInstance<HederaAccountCredential>()
+        .firstOrNull()
+        ?: throw IllegalStateException(
+            "No Hedera Account in this wallet. Open Document Store → " +
+                "\"Create Test Documents in Platform Secure Area\" first.",
+        )
+
+    // The on-chain account is created once and its id persisted on the credential (via the
+    // issuer-data slot), so subsequent payments reuse the same account.
+    val accountId = if (credential.isCertified) {
+        credential.issuerProvidedData.decodeToString()
+    } else {
+        onStep("Provisioning on-chain account (first payment)…")
+        val id = provisionAccount(config, credential.hederaPublicKey()).toString()
+        credential.certify(id.encodeToByteString())
+        id
     }
-    val document = store.createDocument(displayName = "Hedera Account")
-    val credential = HederaAccountCredential.create(
-        document, "hedera", secureArea, "hedera:testnet", null,
-        AndroidKeystoreCreateKeySettings.Builder(ByteString())
-            .setAlgorithm(Algorithm.ED25519)
-            .setUserAuthenticationRequired(true, 0.seconds, setOf(UserAuthenticationType.BIOMETRIC))
-            .build(),
-    )
 
-    // 2. Provision the on-chain account from the TEE key (operator pays).
-    onStep("Provisioning on-chain account…")
-    val accountId = provisionAccount(config, credential.hederaPublicKey()).toString()
-
-    // 3. Sign the recipient-bound transfer inside the TEE — triggers the biometric prompt.
+    // Sign the recipient-bound transfer inside the TEE — triggers the biometric prompt.
     onStep("Authenticate to authorize the payment…")
     val tx = buildRecipientBoundTransfer(accountId, merchant, AMOUNT_TINYBAR, config.feePayer)
     val signed = signFrozenWithCredential(
@@ -171,7 +163,7 @@ private suspend fun pay(
     )
     verifyRecipientBoundWire(signed.transactionBase64(), signed.signerPublicKey, merchant, AMOUNT_TINYBAR, config.feePayer)
 
-    // 4. Settle via blocky402.
+    // Settle via blocky402.
     onStep("Settling via blocky402…")
     val body = buildX402Body(signed.transactionBase64(), merchant, AMOUNT_TINYBAR, config.feePayer)
     val txId = verifyAndSettle(config, body) { url, requestBody ->

@@ -145,6 +145,7 @@ import org.multipaz.testapp.ui.ScreenLockScreen
 import org.multipaz.testapp.ui.SecureEnclaveSecureAreaScreen
 import org.multipaz.testapp.ui.SettingsScreen
 import org.multipaz.testapp.ui.ShareSheetScreen
+import org.multipaz.testapp.hedera.addPlatformCredentialImplementations
 import org.multipaz.testapp.ui.HederaPayScreen
 import org.multipaz.testapp.ui.ShowResponseScreen
 import org.multipaz.testapp.ui.SoftwareSecureAreaScreen
@@ -384,6 +385,7 @@ class App private constructor (val promptModel: PromptModel) {
             secureAreaRepository = secureAreaRepository,
         ) {
             //setTableSpec(testDocumentTableSpec)
+            addPlatformCredentialImplementations()
         }
     }
 
@@ -1450,6 +1452,7 @@ class App private constructor (val promptModel: PromptModel) {
                         HederaPayScreen(
                             promptModel = promptModel,
                             showToast = { message -> showToast(message) },
+                            documentStore = documentStore,
                         )
                     }
                 }
