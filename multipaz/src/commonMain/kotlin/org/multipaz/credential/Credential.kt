@@ -318,6 +318,11 @@ abstract class Credential {
         if (replacementForIdentifier != null) {
             document.deleteCredential(replacementForIdentifier)
         }
+
+        // Notify observers (e.g. DocumentModel) that the document changed, so derived state such as
+        // credential claims is recomputed. Without this, certification persists silently and stale
+        // pre-certification state (e.g. empty claims) lingers until the next reload.
+        document.store.emitOnDocumentChanged(document.identifier)
     }
 
     /**
