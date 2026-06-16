@@ -108,6 +108,7 @@ import org.multipaz.provisioning.DocumentProvisioningHandler
 import org.multipaz.provisioning.ProvisioningModel
 import org.multipaz.request.Requester
 import org.multipaz.secure_area_test_app.ui.CloudSecureAreaScreen
+import org.multipaz.securearea.SecureArea
 import org.multipaz.securearea.SecureAreaRepository
 import org.multipaz.securearea.cloud.CloudSecureArea
 import org.multipaz.securearea.software.SoftwareSecureArea
@@ -148,6 +149,7 @@ import org.multipaz.testapp.ui.ShareSheetScreen
 import org.multipaz.testapp.hedera.addPlatformCredentialImplementations
 import org.multipaz.testapp.ui.HederaPayScreen
 import org.multipaz.testapp.ui.ShowResponseScreen
+import org.multipaz.testapp.ui.X402PaymentsScreen
 import org.multipaz.testapp.ui.SoftwareSecureAreaScreen
 import org.multipaz.testapp.ui.StartScreen
 import org.multipaz.testapp.ui.TrustEntryEditScreen
@@ -197,6 +199,7 @@ class App private constructor (val promptModel: PromptModel) {
 
     lateinit var secureAreaRepository: SecureAreaRepository
     lateinit var softwareSecureArea: SoftwareSecureArea
+    lateinit var platformSecureArea: SecureArea
     lateinit var documentStore: DocumentStore
     lateinit var documentModel: DocumentModel
 
@@ -374,7 +377,7 @@ class App private constructor (val promptModel: PromptModel) {
                     TestAppConfiguration.httpClientEngineFactory
                 )
             }
-        val platformSecureArea = Platform.getSecureArea(TestAppConfiguration.storage)
+        platformSecureArea = Platform.getSecureArea(TestAppConfiguration.storage)
         // It's possible the platform SecureArea _is_ SoftwareSecureArea so avoid duplicates.
         if (platformSecureArea !is SoftwareSecureArea) {
             secureAreaRepositoryBuilder.add(platformSecureArea)
@@ -1091,9 +1094,9 @@ class App private constructor (val promptModel: PromptModel) {
                                     AndroidKeystoreSecureAreaDestination
                                 )
                             },
-                            onClickHederaPay = {
+                            onClickX402Payments = {
                                 navController.navigate(
-                                    HederaPayDestination
+                                    X402PaymentsDestination
                                 )
                             },
                             onClickCloudSecureArea = {
@@ -1447,12 +1450,20 @@ class App private constructor (val promptModel: PromptModel) {
                         )
                     }
                 }
+                composable<X402PaymentsDestination> { backStackEntry ->
+                    WithAppBar(navController, "x402 Agentic Payment Credentials") {
+                        X402PaymentsScreen(
+                            onClickHedera = { navController.navigate(HederaPayDestination) },
+                        )
+                    }
+                }
                 composable<HederaPayDestination> { backStackEntry ->
-                    WithAppBar(navController, "x402 Hedera Payment") {
+                    WithAppBar(navController, "Hedera — x402 payment") {
                         HederaPayScreen(
                             promptModel = promptModel,
                             showToast = { message -> showToast(message) },
                             documentStore = documentStore,
+                            secureArea = platformSecureArea,
                         )
                     }
                 }

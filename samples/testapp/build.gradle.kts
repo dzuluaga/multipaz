@@ -154,6 +154,8 @@ kotlin {
                 // network; supply grpc-okhttp explicitly (works on Android and the JVM host).
                 // Version matches the SDK's grpc-api (1.72.0).
                 implementation("io.grpc:grpc-okhttp:1.72.0")
+                // QR encoding for the one-time recovery-key screen.
+                implementation(libs.zxing.core)
             }
         }
 

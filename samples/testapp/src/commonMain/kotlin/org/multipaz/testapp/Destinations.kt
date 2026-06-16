@@ -74,6 +74,9 @@ data object SoftwareSecureAreaDestination: Destination()
 data object AndroidKeystoreSecureAreaDestination: Destination()
 
 @Serializable
+data object X402PaymentsDestination: Destination()
+
+@Serializable
 data object HederaPayDestination: Destination()
 
 @Serializable

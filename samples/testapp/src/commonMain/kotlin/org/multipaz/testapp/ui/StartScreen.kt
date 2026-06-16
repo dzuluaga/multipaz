@@ -35,7 +35,7 @@ fun StartScreen(
     onClickTrustedVerifiers: () -> Unit = {},
     onClickSoftwareSecureArea: () -> Unit = {},
     onClickAndroidKeystoreSecureArea: () -> Unit = {},
-    onClickHederaPay: () -> Unit = {},
+    onClickX402Payments: () -> Unit = {},
     onClickCloudSecureArea: () -> Unit = {},
     onClickSecureEnclaveSecureArea: () -> Unit = {},
     onClickPassphraseEntryField: () -> Unit = {},
@@ -133,6 +133,16 @@ fun StartScreen(
                     }
                 }
 
+                // x402 agentic payment credentials hub (Android-only for now: the only provider,
+                // Hedera, uses the JVM/Android Hedera SDK).
+                if (TestAppConfiguration.platform == TestAppPlatform.ANDROID) {
+                    item {
+                        TextButton(onClick = onClickX402Payments) {
+                            Text("x402 Agentic Payment Credentials")
+                        }
+                    }
+                }
+
                 item {
                     TextButton(onClick = onClickVerticalCardListScreen) {
                         Text("Vertical Card List")
@@ -162,11 +172,6 @@ fun StartScreen(
                         item {
                             TextButton(onClick = onClickAndroidKeystoreSecureArea) {
                                 Text("Android Keystore Secure Area")
-                            }
-                        }
-                        item {
-                            TextButton(onClick = onClickHederaPay) {
-                                Text("x402 Hedera Payment")
                             }
                         }
                     }

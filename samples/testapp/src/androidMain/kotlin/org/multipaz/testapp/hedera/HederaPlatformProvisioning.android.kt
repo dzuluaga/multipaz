@@ -1,6 +1,10 @@
 package org.multipaz.testapp.hedera
 
 import kotlinx.io.bytestring.ByteString
+import multipazproject.samples.testapp.generated.resources.Res
+import multipazproject.samples.testapp.generated.resources.hedera_card_art
+import org.jetbrains.compose.resources.getDrawableResourceBytes
+import org.jetbrains.compose.resources.getSystemResourceEnvironment
 import org.multipaz.crypto.Algorithm
 import org.multipaz.document.DocumentStore
 import org.multipaz.securearea.AndroidKeystoreCreateKeySettings
@@ -22,9 +26,14 @@ actual suspend fun provisionPlatformHederaAccount(
     if (!AndroidKeystoreSecureArea.Capabilities().curve25519Supported) {
         return "Hedera account skipped: device KeyMint lacks Curve25519 (needs KeyMint 2.0+)."
     }
+    val cardArt = getDrawableResourceBytes(
+        getSystemResourceEnvironment(),
+        Res.drawable.hedera_card_art,
+    )
     val document = documentStore.createDocument(
         displayName = "Hedera Account",
         typeDisplayName = "Hedera testnet account",
+        cardArt = ByteString(cardArt),
     )
     HederaAccountCredential.create(
         document = document,
@@ -36,6 +45,7 @@ actual suspend fun provisionPlatformHederaAccount(
             .setAlgorithm(Algorithm.ED25519)
             .setUserAuthenticationRequired(true, 0.seconds, setOf(UserAuthenticationType.BIOMETRIC))
             .build(),
+        recoverable = true,
     )
     return "Hedera Account provisioned (Ed25519 key in the TEE)."
 }

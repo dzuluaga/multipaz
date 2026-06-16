@@ -2,10 +2,15 @@ package org.multipaz.testapp.hedera
 
 import com.hedera.hashgraph.sdk.PublicKey
 import kotlin.time.Instant
+import kotlinx.io.bytestring.decodeToString
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
 import org.multipaz.cbor.CborBuilder
 import org.multipaz.cbor.DataItem
 import org.multipaz.cbor.MapBuilder
 import org.multipaz.claim.Claim
+import org.multipaz.claim.JsonClaim
 import org.multipaz.credential.SecureAreaBoundCredential
 import org.multipaz.crypto.EcCurve
 import org.multipaz.crypto.EcPublicKeyOkp
@@ -30,6 +35,10 @@ class HederaAccountCredential : SecureAreaBoundCredential {
     companion object {
         const val CREDENTIAL_TYPE: String = "HederaAccountCredential"
 
+        // Synthetic VCT for the wallet-display claims below. This credential is self-custodial and
+        // is never presented to a verifier, so the value only needs to be stable.
+        private const val HEDERA_VCT = "org.multipaz.testapp.hedera.account"
+
         /**
          * Creates a [HederaAccountCredential] with a freshly-generated Ed25519 key.
          *
@@ -47,8 +56,9 @@ class HederaAccountCredential : SecureAreaBoundCredential {
             network: String,
             accountId: String?,
             createKeySettings: CreateKeySettings,
+            recoverable: Boolean = false,
         ): HederaAccountCredential {
-            return HederaAccountCredential(document, null, domain, secureArea, network, accountId).apply {
+            return HederaAccountCredential(document, null, domain, secureArea, network, accountId, recoverable).apply {
                 generateKey(createKeySettings)
             }
         }
@@ -69,7 +79,7 @@ class HederaAccountCredential : SecureAreaBoundCredential {
             accountId: String,
             existingKeyAlias: String,
         ): HederaAccountCredential {
-            return HederaAccountCredential(document, null, domain, secureArea, network, accountId).apply {
+            return HederaAccountCredential(document, null, domain, secureArea, network, accountId, recoverable = false).apply {
                 useExistingKey(existingKeyAlias)
             }
         }
@@ -83,6 +93,10 @@ class HederaAccountCredential : SecureAreaBoundCredential {
     var accountId: String? = null
         private set
 
+    /** True if this account is set up with a 1-of-2 recovery threshold key. */
+    var recoverable: Boolean = false
+        private set
+
     private constructor(
         document: Document,
         asReplacementForIdentifier: String?,
@@ -90,9 +104,11 @@ class HederaAccountCredential : SecureAreaBoundCredential {
         secureArea: SecureArea,
         network: String,
         accountId: String?,
+        recoverable: Boolean,
     ) : super(document, asReplacementForIdentifier, domain, secureArea) {
         this.network = network
         this.accountId = accountId
+        this.recoverable = recoverable
     }
 
     constructor(document: Document) : super(document)
@@ -119,18 +135,42 @@ class HederaAccountCredential : SecureAreaBoundCredential {
         super.deserialize(dataItem)
         network = dataItem["network"].asTstr
         accountId = dataItem.getOrNull("accountId")?.asTstr
+        recoverable = dataItem.getOrNull("recoverable")?.asBoolean ?: false
     }
 
     override fun addSerializedData(builder: MapBuilder<CborBuilder>) {
         super.addSerializedData(builder)
         builder.put("network", network)
         accountId?.let { builder.put("accountId", it) }
+        builder.put("recoverable", recoverable)
     }
 
-    // Self-custodial: no issuer claims and unbounded validity. The credential exists to hold and
-    // exercise the account key, not to be presented as an issued claim set.
-    override suspend fun getClaims(documentTypeRepository: DocumentTypeRepository?): List<Claim> =
-        emptyList()
+    // Locally-known account facts surfaced for wallet display. This credential is self-custodial,
+    // so these are not issuer-signed and not presented to a verifier (there is no doctype/VCT for a
+    // Hedera account) — they exist so the wallet can show the account in the credential viewer.
+    override suspend fun getClaims(documentTypeRepository: DocumentTypeRepository?): List<Claim> {
+        val claims = mutableListOf<Claim>()
+        claims.add(jsonClaim("account_id", "Account ID", provisionedAccountId() ?: "Not created yet"))
+        claims.add(jsonClaim("network", "Network", network))
+        runCatching { hederaPublicKey().toString() }.getOrNull()?.let {
+            claims.add(jsonClaim("public_key", "Account public key", it))
+        }
+        claims.add(jsonClaim("recoverable", "Recoverable", if (recoverable) "Yes" else "No"))
+        return claims
+    }
+
+    /** The provisioned `0.0.x` id — from the credential's stored field or the certified issuer data. */
+    private fun provisionedAccountId(): String? =
+        accountId ?: if (isCertified) issuerProvidedData.decodeToString() else null
+
+    private fun jsonClaim(name: String, displayName: String, value: String): JsonClaim =
+        JsonClaim(
+            displayName = displayName,
+            attribute = null,
+            vct = HEDERA_VCT,
+            claimPath = buildJsonArray { add(name) },
+            value = JsonPrimitive(value),
+        )
 
     override suspend fun extractValidityFromIssuerData(): Pair<Instant, Instant> =
         Instant.DISTANT_PAST to Instant.DISTANT_FUTURE

@@ -20,6 +20,7 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -147,6 +148,47 @@ class HederaAccountCredentialTest {
         assertEquals(AMOUNT.toString(), req["amount"]!!.jsonPrimitive.content)
         assertTrue(req["maxTimeoutSeconds"]!!.jsonPrimitive.content.toInt() >= 1)
         assertEquals(req, body["paymentPayload"]!!.jsonObject["accepted"]!!.jsonObject)
+    }
+
+    @Test
+    fun `recoverable flag survives serialize-reload`() = runBlocking {
+        val storage = EphemeralStorage()
+        val secureArea = SoftwareSecureArea.create(storage)
+        val store = newStore(storage, secureArea)
+        val document = store.createDocument(displayName = "Hedera Account")
+        HederaAccountCredential.create(
+            document = document,
+            domain = DOMAIN,
+            secureArea = secureArea,
+            network = NETWORK,
+            accountId = ACCOUNT_ID,
+            createKeySettings = SoftwareCreateKeySettings.Builder().setAlgorithm(Algorithm.ED25519).build(),
+            recoverable = true,
+        )
+        val documentId = document.identifier
+
+        val reloaded = newStore(storage, secureArea).lookupDocument(documentId)!!
+            .getCredentials().filterIsInstance<HederaAccountCredential>().single()
+        assertTrue(reloaded.recoverable)
+
+        // The false case is the one most likely to silently break if a serialization
+        // direction is dropped: a default-false field round-trips to false whether or not
+        // it is actually persisted. Use a distinct document so the two don't collide.
+        val nonRecoverableDoc = store.createDocument(displayName = "Hedera Account (non-recoverable)")
+        HederaAccountCredential.create(
+            document = nonRecoverableDoc,
+            domain = DOMAIN,
+            secureArea = secureArea,
+            network = NETWORK,
+            accountId = ACCOUNT_ID,
+            createKeySettings = SoftwareCreateKeySettings.Builder().setAlgorithm(Algorithm.ED25519).build(),
+            recoverable = false,
+        )
+        val nonRecoverableId = nonRecoverableDoc.identifier
+
+        val reloadedNonRecoverable = newStore(storage, secureArea).lookupDocument(nonRecoverableId)!!
+            .getCredentials().filterIsInstance<HederaAccountCredential>().single()
+        assertFalse(reloadedNonRecoverable.recoverable)
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.hedera.hashgraph.sdk.AccountCreateTransaction
 import com.hedera.hashgraph.sdk.AccountId
 import com.hedera.hashgraph.sdk.Client
 import com.hedera.hashgraph.sdk.Hbar
+import com.hedera.hashgraph.sdk.KeyList
 import com.hedera.hashgraph.sdk.PrivateKey
 import com.hedera.hashgraph.sdk.PublicKey
 import kotlinx.coroutines.Dispatchers
@@ -45,6 +46,13 @@ class FacilitatorException(val stage: String, message: String) :
 fun hashscanUrl(transactionId: String): String =
     "https://hashscan.io/testnet/transaction/$transactionId"
 
+/** The account key for a recoverable account: 1-of-2 [phone TEE key, recovery key]. */
+fun buildRecoverableAccountKey(
+    teePublicKey: PublicKey,
+    recoveryPublicKey: PublicKey,
+    // setThreshold(...) returns Unit in Hedera SDK 2.x, so use .also to keep the expression-body form.
+): KeyList = KeyList.of(teePublicKey, recoveryPublicKey).also { it.setThreshold(1) }
+
 /**
  * Creates a testnet account whose key is [accountPublicKey] (the credential's Ed25519 public
  * key), funded with [initialBalance], paid by the operator. Returns the new `0.0.x` id.
@@ -66,6 +74,48 @@ suspend fun provisionAccount(
             .execute(client)
             .getReceipt(client)
             .accountId ?: error("AccountCreate returned no account id")
+    } finally {
+        client.close()
+    }
+}
+
+/** Result of creating a recoverable account: the on-chain id and the one-shot recovery private key. */
+data class RecoverableProvisionResult(
+    val accountId: String,
+    /** Ed25519 recovery private key (DER string) — display ONCE, then drop. Never persist. */
+    val recoveryPrivateKey: String,
+) {
+    // Keep the sensitive key out of logs/crash reports — the auto-generated data-class
+    // toString() would otherwise print the full DER private key.
+    override fun toString(): String =
+        "RecoverableProvisionResult(accountId=$accountId, recoveryPrivateKey=<redacted>)"
+}
+
+/**
+ * Creates a testnet account keyed by a 1-of-2 threshold [TEE key, fresh recovery key], funded by
+ * the operator. The recovery private key is generated here and returned for one-time display; it
+ * is never written to disk by the app.
+ */
+suspend fun provisionRecoverableAccount(
+    config: HederaOperatorConfig,
+    teePublicKey: PublicKey,
+    initialBalance: Hbar = Hbar.from(1),
+): RecoverableProvisionResult = withContext(Dispatchers.IO) {
+    val recovery = PrivateKey.generateED25519()
+    val client = Client.forTestnet()
+    try {
+        client.setOperator(
+            AccountId.fromString(config.operatorId),
+            PrivateKey.fromString(config.operatorKey),
+        )
+        val accountId = AccountCreateTransaction()
+            .setKeyWithoutAlias(buildRecoverableAccountKey(teePublicKey, recovery.publicKey))
+            .setInitialBalance(initialBalance)
+            .execute(client)
+            .getReceipt(client)
+            .accountId ?: error("AccountCreate returned no account id")
+        // PrivateKey.toString() is the hex-encoded DER (== toStringDER()); round-trips via PrivateKey.fromString().
+        RecoverableProvisionResult(accountId.toString(), recovery.toString())
     } finally {
         client.close()
     }

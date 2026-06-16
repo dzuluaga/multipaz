@@ -1,5 +1,6 @@
 package org.multipaz.testapp.hedera
 
+import com.hedera.hashgraph.sdk.PrivateKey
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -64,5 +65,15 @@ class HederaSettlementTest {
             "https://hashscan.io/testnet/transaction/0.0.1111@1700000000.000000000",
             hashscanUrl("0.0.1111@1700000000.000000000"),
         )
+    }
+
+    @Test
+    fun `buildRecoverableAccountKey is a 1-of-2 threshold of the two keys`() {
+        val tee = PrivateKey.generateED25519().publicKey
+        val recovery = PrivateKey.generateED25519().publicKey
+        val keyList = buildRecoverableAccountKey(tee, recovery)
+        assertEquals(1, keyList.threshold)
+        assertEquals(2, keyList.size)
+        assertTrue(keyList.toList().containsAll(listOf(tee, recovery)))
     }
 }
